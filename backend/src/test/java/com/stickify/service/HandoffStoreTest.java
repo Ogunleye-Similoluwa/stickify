@@ -33,7 +33,7 @@ class HandoffStoreTest {
     };
 
     private HandoffStore store(int max) {
-        return new HandoffStore(new WhatsAppProperties("t", "p", "234800", "", "", "x", Duration.ofMinutes(30), max), clock);
+        return new HandoffStore(new WhatsAppProperties("t", "p", "234800", "", "", "", "x", Duration.ofMinutes(30), max), clock);
     }
 
     @Test

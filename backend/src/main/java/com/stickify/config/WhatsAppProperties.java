@@ -15,6 +15,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param number         the number people message, digits only with country code (used in wa.me links)
  * @param verifyToken    shared secret Meta echoes when the webhook is registered
  * @param appSecret      Meta app secret, used to check that webhook calls really come from Meta
+ * @param businessAccountId WhatsApp Business Account ID; the app subscribes to it on startup so messages are delivered
  * @param graphBaseUrl   Graph API base URL
  * @param handoffTtl     how long a sticker waits for its code to be sent
  * @param maxHandoffs    how many stickers can wait at once
@@ -26,6 +27,7 @@ public record WhatsAppProperties(
         @DefaultValue("") String number,
         @DefaultValue("") String verifyToken,
         @DefaultValue("") String appSecret,
+        @DefaultValue("") String businessAccountId,
         @DefaultValue("https://graph.facebook.com/v25.0") String graphBaseUrl,
         @DefaultValue("30m") Duration handoffTtl,
         @DefaultValue("300") int maxHandoffs) {

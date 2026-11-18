@@ -56,6 +56,19 @@ public class WhatsAppClient {
         return id;
     }
 
+    /**
+     * Subscribes this app to the WhatsApp Business Account. Without it Meta only sends test webhooks,
+     * not real incoming messages. Safe to repeat.
+     */
+    public void subscribeApp() throws IOException, InterruptedException {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(properties.graphBaseUrl() + "/" + properties.businessAccountId() + "/subscribed_apps"))
+                .timeout(Duration.ofSeconds(20))
+                .header("Authorization", "Bearer " + properties.token())
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build();
+        send(request);
+    }
+
     public void sendSticker(String to, String mediaId) throws IOException, InterruptedException {
         ObjectNode message = base(to, "sticker");
         message.putObject("sticker").put("id", mediaId);
