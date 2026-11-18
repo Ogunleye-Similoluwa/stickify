@@ -18,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.stickify.model.LinkConversionRequest;
 import com.stickify.model.LinkLookupRequest;
 import com.stickify.model.MediaInfo;
+import com.stickify.model.StickerFit;
 import com.stickify.model.StickerMode;
 import com.stickify.model.StickerResult;
 import com.stickify.service.StickerService;
@@ -47,8 +48,10 @@ public class StickerController {
             @RequestPart("file") MultipartFile file,
             @RequestParam(value = "mode", required = false) String mode,
             @RequestParam(value = "start", required = false) Double start,
-            @RequestParam(value = "seconds", required = false) Double seconds) {
-        StickerResult result = stickerService.fromUpload(file, StickerMode.from(mode), start, seconds);
+            @RequestParam(value = "seconds", required = false) Double seconds,
+            @RequestParam(value = "fit", required = false) String fit) {
+        StickerResult result = stickerService.fromUpload(file, StickerMode.from(mode), start, seconds,
+                StickerFit.from(fit));
         return asWebp(result);
     }
 

@@ -10,10 +10,12 @@ import jakarta.validation.constraints.Size;
  * @param mode         "animated" (default) or "static"
  * @param startSeconds optional start offset in seconds
  * @param seconds      optional clip length in seconds; defaults to the whole clip, up to the maximum
+ * @param fit          "fill" (default) crops to a square, "fit" keeps the whole picture
  */
 public record LinkConversionRequest(
         @NotBlank(message = "Paste a link to an X post") @Size(max = 500) String url,
         StickerMode mode,
         Double startSeconds,
-        Double seconds) {
+        Double seconds,
+        StickerFit fit) {
 }

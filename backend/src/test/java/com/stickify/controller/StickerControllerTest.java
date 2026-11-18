@@ -22,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.stickify.exception.MediaNotFoundException;
 import com.stickify.model.LinkConversionRequest;
 import com.stickify.model.MediaInfo;
+import com.stickify.model.StickerFit;
 import com.stickify.model.StickerMode;
 import com.stickify.model.StickerResult;
 import com.stickify.service.StickerService;
@@ -46,7 +47,7 @@ class StickerControllerTest {
 
     @Test
     void uploadReturnsWebpSticker() throws Exception {
-        when(stickerService.fromUpload(any(), eq(StickerMode.ANIMATED), any(), any()))
+        when(stickerService.fromUpload(any(), eq(StickerMode.ANIMATED), any(), any(), eq(StickerFit.FILL)))
                 .thenReturn(new StickerResult(FAKE_WEBP, StickerMode.ANIMATED, 60));
 
         MockMultipartFile file = new MockMultipartFile("file", "cat.gif", "image/gif", new byte[] {1, 2, 3});

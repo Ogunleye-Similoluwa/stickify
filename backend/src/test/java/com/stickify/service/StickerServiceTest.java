@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import com.stickify.config.StickerProperties;
 import com.stickify.model.ConversionOptions;
+import com.stickify.model.StickerFit;
 import com.stickify.model.StickerMode;
 
 class StickerServiceTest {
@@ -39,5 +40,14 @@ class StickerServiceTest {
         assertThat(service.options(StickerMode.ANIMATED, 0.0, 42.0).seconds()).isEqualTo(10.0);
         assertThat(service.options(StickerMode.ANIMATED, 0.0, 0.1).seconds()).isEqualTo(StickerService.MIN_SECONDS);
         assertThat(service.options(StickerMode.ANIMATED, -3.0, 2.0).startSeconds()).isZero();
+    }
+
+    @Test
+    void fillsTheSquareUnlessAskedToFit() {
+        assertThat(service.options(StickerMode.ANIMATED, null, null).fit()).isEqualTo(StickerFit.FILL);
+        assertThat(service.options(StickerMode.ANIMATED, null, null, null).fit()).isEqualTo(StickerFit.FILL);
+        assertThat(service.options(StickerMode.ANIMATED, null, null, StickerFit.FIT).fit()).isEqualTo(StickerFit.FIT);
+        assertThat(StickerFit.from("Fit")).isEqualTo(StickerFit.FIT);
+        assertThat(StickerFit.from(null)).isEqualTo(StickerFit.FILL);
     }
 }

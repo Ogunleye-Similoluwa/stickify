@@ -1,5 +1,5 @@
 import { useEffect, useRef, type CSSProperties } from "react";
-import type { MediaKind } from "../lib/api";
+import type { MediaKind, StickerFit } from "../lib/api";
 import { formatSeconds, MAX_SECONDS, moveEnd, moveStart, STEP, type Selection, type StickerMode } from "../lib/trim";
 
 export interface Clip {
@@ -18,11 +18,12 @@ interface Props {
   playable: boolean;
   selection: Selection | null;
   mode: StickerMode;
+  fit: StickerFit;
   onVideoReady(duration: number | null, playable: boolean): void;
   onSelect(selection: Selection): void;
 }
 
-export function ClipPreview({ clip, loading, duration, playable, selection, mode, onVideoReady, onSelect }: Props) {
+export function ClipPreview({ clip, loading, duration, playable, selection, mode, fit, onVideoReady, onSelect }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const trimRef = useRef<HTMLDivElement>(null);
   const scrubbing = useRef(false);
@@ -110,7 +111,7 @@ export function ClipPreview({ clip, loading, duration, playable, selection, mode
 
   return (
     <section className="clip" aria-label="Preview and trim">
-      <div className="clip-stage checker">
+      <div className={`clip-stage checker is-${fit}`}>
         {clip.display === "video" && (
           <video
             ref={videoRef}
