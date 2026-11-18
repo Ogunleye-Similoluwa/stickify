@@ -8,9 +8,9 @@ services:
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
-      # Only the GitHub Pages site may call the API from a browser.
+      # Only the GitHub Pages and Netlify sites may call the API from a browser.
       - key: ALLOWED_ORIGINS
-        value: "https://ogunleye-similoluwa.github.io"
+        value: "https://ogunleye-similoluwa.github.io,https://stickify-wa.netlify.app"
       - key: MAX_CONCURRENT_JOBS
         value: "1"
       - key: RATE_LIMIT_REQUESTS

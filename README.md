@@ -4,6 +4,8 @@ Turn a GIF, a video, or the media in an X (Twitter) post into a **WhatsApp-ready
 
 Paste a link or upload a file, and Stickify returns a 512×512 WebP with a transparent border, automatically compressed to fit WhatsApp's limits (500 KB animated, 100 KB still).
 
+**Try it:** [stickify-wa.netlify.app](https://stickify-wa.netlify.app) · [ogunleye-similoluwa.github.io/stickify](https://ogunleye-similoluwa.github.io/stickify/)
+
 - **Frontend:** React and TypeScript (Vite), deployed on GitHub Pages and Netlify
 - **Backend:** Java 21 + Spring Boot (MVC), using ffmpeg for conversion, deployed on Render with Docker
 
