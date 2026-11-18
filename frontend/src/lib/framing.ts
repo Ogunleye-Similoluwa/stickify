@@ -26,10 +26,17 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), h
 
 /** The picture's position and size inside a `size` x `size` square. */
 export function placement(srcW: number, srcH: number, fit: StickerFit, framing: Framing = DEFAULT_FRAMING, size = 512): Box {
-  const base = fit === "fit" ? Math.min(size / srcW, size / srcH) : Math.max(size / srcW, size / srcH);
-  const scale = base * clamp(framing.zoom, 1, MAX_ZOOM);
-  const w = srcW * scale;
-  const h = srcH * scale;
+  const zoom = clamp(framing.zoom, 1, MAX_ZOOM);
+  let w: number;
+  let h: number;
+  if (fit === "stretch") {
+    w = size * zoom;
+    h = size * zoom;
+  } else {
+    const base = fit === "fit" ? Math.min(size / srcW, size / srcH) : Math.max(size / srcW, size / srcH);
+    w = srcW * base * zoom;
+    h = srcH * base * zoom;
+  }
   const x = (w > size ? (size - w) * clamp(framing.panX, 0, 1) : (size - w) / 2) + 0; // + 0 avoids -0
   const y = (h > size ? (size - h) * clamp(framing.panY, 0, 1) : (size - h) / 2) + 0;
   return { x, y, w, h };

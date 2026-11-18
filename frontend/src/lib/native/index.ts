@@ -1,7 +1,7 @@
 import type { Sticker, StickerFit } from "../api";
 import type { StickerMode } from "../trim";
 import type { Framing } from "../framing";
-import { LIMIT_ANIMATED, LIMIT_STATIC, framesPerSecond, perFrameBudget, qualityFor, sampleIndices, thin } from "./budget";
+import { LIMIT_ANIMATED, LIMIT_STATIC, framesPerSecond, type Motion, perFrameBudget, qualityFor, sampleIndices, thin } from "./budget";
 import { UnsupportedSource, animatedImageFrames, mp4Frames, photoFrame, type FrameRequest } from "./decode";
 import { encodeAll } from "./encoderPool";
 import { frameDurations, muxAnimatedWebp, parseWebp } from "./webpMux";
@@ -40,13 +40,14 @@ export interface NativeOptions {
   start: number;
   seconds: number;
   framing: Framing;
+  motion: Motion;
 }
 
 const isVideo = (type: string) => type.startsWith("video/") || type === "";
 const isMp4Family = (type: string) => /mp4|quicktime|m4v/.test(type) || type === "";
 const isAnimatedImage = (type: string) => type === "image/gif" || type === "image/webp";
 
-async function sourceFrames(blob: Blob, opts: NativeOptions, still: boolean, fps: number, isCancelled: () => boolean): Promise<ImageBitmap[]> {
+export async function sourceFrames(blob: Blob, opts: NativeOptions, still: boolean, fps: number, isCancelled: () => boolean): Promise<ImageBitmap[]> {
   const type = blob.type;
   if (still && !isVideo(type) && !isAnimatedImage(type)) return [await photoFrame(blob, opts.fit, opts.framing)];
   const req: FrameRequest = {
@@ -62,7 +63,7 @@ async function sourceFrames(blob: Blob, opts: NativeOptions, still: boolean, fps
 const totalSize = (frames: Uint8Array[]) => frames.reduce((n, f) => n + f.length, 0);
 
 /** Qualities tried on a few sample frames, all at once, to predict the right one. */
-const PROBE_QUALITIES = [0.08, 0.3, 0.55, 0.8];
+const PROBE_QUALITIES = [0.08, 0.3, 0.55, 0.8, 0.95];
 
 /**
  * Picks the highest quality whose predicted frame size fits the budget, from one parallel round
@@ -88,7 +89,7 @@ export async function convertNative(blob: Blob, opts: NativeOptions, still: bool
   const check = () => {
     if (isCancelled()) throw new DOMException("Cancelled", "AbortError");
   };
-  const fps = framesPerSecond(opts.seconds);
+  const fps = framesPerSecond(opts.seconds, opts.motion);
   let bitmaps = await sourceFrames(blob, opts, still, fps, isCancelled);
   mark("decode");
   check();

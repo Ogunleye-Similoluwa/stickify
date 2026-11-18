@@ -23,6 +23,14 @@ describe("placement", () => {
   });
 });
 
+describe("stretch", () => {
+  it("fills the square edge to edge", () => {
+    expect(placement(640, 360, "stretch")).toEqual({ x: 0, y: 0, w: 512, h: 512 });
+    expect(framingFilter(640, 360, "stretch", DEFAULT_FRAMING)).toBe(
+      "scale=512:512:flags=lanczos,format=rgba,crop=512:512:0:0,pad=512:512:0:0:color=0x00000000");
+  });
+});
+
 describe("pan", () => {
   it("moves the picture with the drag and stops at the edges", () => {
     const box = placement(640, 360, "fill");

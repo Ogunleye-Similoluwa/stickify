@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { framesPerSecond, perFrameBudget, qualityFor, sampleIndices, thin } from "./budget";
 
 describe("native budget", () => {
+  it("uses half the frames when sharpness matters more", () => {
+    expect(framesPerSecond(10, "sharp")).toBe(5);
+    expect(framesPerSecond(3, "sharp")).toBe(10);
+    expect(framesPerSecond(10, "sharp") * 10).toBeLessThanOrEqual(50);
+  });
   it("caps frames at 100", () => {
     expect(framesPerSecond(10)).toBe(10);
     expect(framesPerSecond(3)).toBe(15);

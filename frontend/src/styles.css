@@ -214,6 +214,7 @@ input[type="url"]:focus, input[type="number"]:focus {
   grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
+.segmented.three { grid-template-columns: repeat(3, 1fr); }
 .segmented label { position: relative; }
 .segmented input { position: absolute; opacity: 0; }
 .segmented span {
@@ -250,25 +251,24 @@ input[type="url"]:focus, input[type="number"]:focus {
 }
 .clip-stage video, .clip-stage img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .clip-stage.is-fill video, .clip-stage.is-fill img { object-fit: cover; }
+.clip-stage.is-stretch video, .clip-stage.is-stretch img { object-fit: fill; }
+.clip-stage.is-adjustable { touch-action: pan-y; }
 .clip-stage.is-pannable { cursor: grab; touch-action: none; }
 .clip-stage.is-pannable:active { cursor: grabbing; }
 .clip-stage img { user-select: none; -webkit-user-drag: none; }
-.clip-pan-hint {
+.clip-reset {
   position: absolute;
   right: 10px;
   top: 10px;
-  padding: 4px 10px;
+  padding: 5px 12px;
+  border: 0;
   border-radius: 999px;
   background: rgba(10, 14, 12, .72);
   color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  pointer-events: none;
+  font: 600 12px/1 var(--body, inherit);
+  cursor: pointer;
 }
-.zoom { display: flex; align-items: center; gap: 12px; margin-top: 12px; font-size: 14px; color: var(--muted); }
-.zoom input { flex: 1; accent-color: var(--accent); }
-.zoom-label { font-weight: 600; color: var(--text); }
-.zoom-value { font-variant-numeric: tabular-nums; min-width: 3.2em; text-align: right; }
+.frame-hint { margin-top: 6px; }
 .link-button { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; font-weight: 600; cursor: pointer; }
 .clip-loading { color: var(--muted); font-size: 14px; font-weight: 500; background: var(--surface); padding: 6px 12px; border-radius: 999px; }
 .clip-badge {
@@ -539,3 +539,6 @@ code { font-size: .92em; background: var(--surface-2); border: 1px solid var(--l
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+.cta.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); box-shadow: none; }
+.pending { align-self: center; color: var(--muted); font-size: 13px; }

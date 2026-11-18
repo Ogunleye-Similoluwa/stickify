@@ -28,6 +28,8 @@ export interface PlanOptions {
   /** null means "the whole clip, up to the maximum". */
   seconds: number | null;
   framing?: Framing;
+  /** "sharp" keeps fewer frames so each is sharper. */
+  motion?: "smooth" | "sharp";
   /** The picture's size, needed to apply zoom and pan; without it the picture is centred. */
   sourceSize?: { width: number; height: number } | null;
 }
@@ -59,6 +61,7 @@ export function clampSeconds(seconds: number | null): number {
 
 export function sizeFilter(fit: StickerFit): string {
   const s = STICKER_SIZE;
+  if (fit === "stretch") return `scale=${s}:${s}:flags=lanczos,format=rgba`;
   return fit === "fit"
     ? `scale=${s}:${s}:force_original_aspect_ratio=decrease:flags=lanczos,format=rgba,pad=${s}:${s}:(ow-iw)/2:(oh-ih)/2:color=0x00000000`
     : `scale=${s}:${s}:force_original_aspect_ratio=increase:flags=lanczos,crop=${s}:${s},format=rgba`;
@@ -70,21 +73,24 @@ function seekArgs(start: number, input: string): string[] {
   return [...(start > 0 ? ["-ss", fixed(start)] : []), "-i", input];
 }
 
+/** Frame rate of the prepared clip: the ladder can only lower it from here. */
+export const preparedFps = (opts: PlanOptions): number => (opts.motion === "sharp" ? 8 : ANIMATED_STEPS[0][0]);
+
 /** Decode, trim and resize once into a lossless 512x512 clip. */
 export function prepareArgs(input: string, output: string, opts: PlanOptions): string[] {
   return [
     ...seekArgs(opts.start, input),
     "-t", fixed(clampSeconds(opts.seconds)),
-    "-vf", `fps=${ANIMATED_STEPS[0][0]},${filterFor(opts)}`,
+    "-vf", `fps=${preparedFps(opts)},${filterFor(opts)}`,
     "-c:v", "ffv1", "-an", output,
   ];
 }
 
-export function animatedArgs(prepared: string, output: string, step: readonly [number, number]): string[] {
+export function animatedArgs(prepared: string, output: string, step: readonly [number, number], sourceFps: number = ANIMATED_STEPS[0][0]): string[] {
   const [fps, quality] = step;
   return [
     "-i", prepared,
-    ...(fps !== ANIMATED_STEPS[0][0] ? ["-vf", `fps=${fps}`] : []),
+    ...(fps < sourceFps ? ["-vf", `fps=${fps}`] : []),
     "-c:v", "libwebp_anim", "-lossless", "0", "-q:v", String(quality),
     "-compression_level", String(COMPRESSION_LEVEL), "-loop", "0", "-an", output,
   ];

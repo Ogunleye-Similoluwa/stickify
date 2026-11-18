@@ -5,9 +5,20 @@ export const LIMIT_STATIC = 100_000;
 export const TARGET_ANIMATED = 470_000;
 export const MAX_FRAMES = 100;
 
-/** Up to 15 fps, but never more than MAX_FRAMES frames in total. */
-export function framesPerSecond(seconds: number): number {
-  return Math.max(6, Math.min(15, Math.floor(MAX_FRAMES / Math.max(seconds, 0.1))));
+export type Motion = "smooth" | "sharp";
+
+/** Frames kept when the picture matters more than smooth motion: each frame gets twice the bytes. */
+export const SHARP_FRAMES = 50;
+
+/**
+ * Smooth: up to 15 fps, never more than MAX_FRAMES frames in total.
+ * Sharp: up to 10 fps and half as many frames, so each one can be much sharper.
+ */
+export function framesPerSecond(seconds: number, motion: Motion = "smooth"): number {
+  const s = Math.max(seconds, 0.1);
+  return motion === "sharp"
+    ? Math.max(5, Math.min(10, Math.floor(SHARP_FRAMES / s)))
+    : Math.max(6, Math.min(15, Math.floor(MAX_FRAMES / s)));
 }
 
 /** Container overhead per frame (ANMF header + chunk headers), roughly. */

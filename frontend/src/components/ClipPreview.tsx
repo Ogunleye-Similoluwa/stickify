@@ -34,7 +34,11 @@ export function ClipPreview({
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ x: number; y: number; framing: Framing } | null>(null);
+  /** Fingers / mouse currently on the preview, and the framing when the gesture started. */
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const gesture = useRef<{ framing: Framing; x: number; y: number; distance: number } | null>(null);
+  const liveFraming = useRef(framing);
+  liveFraming.current = framing;
   const trimRef = useRef<HTMLDivElement>(null);
   const scrubbing = useRef(false);
 
@@ -118,22 +122,61 @@ export function ClipPreview({
       }
     : undefined;
 
-  function startDrag(e: ReactPointerEvent<HTMLDivElement>) {
-    if (!pannable) return;
-    e.currentTarget.setPointerCapture(e.pointerId);
-    drag.current = { x: e.clientX, y: e.clientY, framing };
+  // ----- direct control: drag to move, pinch (phones) or scroll (computers) to zoom -----
+  const centre = () => {
+    const pts = [...pointers.current.values()];
+    const x = pts.reduce((n, p) => n + p.x, 0) / pts.length;
+    const y = pts.reduce((n, p) => n + p.y, 0) / pts.length;
+    const distance = pts.length > 1 ? Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) : 0;
+    return { x, y, distance };
+  };
+  const beginGesture = () => {
+    gesture.current = pointers.current.size ? { framing: liveFraming.current, ...centre() } : null;
+  };
+
+  function onPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
+    if (!mediaSize) return;
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId); // keep getting moves if the finger leaves the box
+    } catch {
+      // not a real, active pointer (rare); the gesture still works inside the box
+    }
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    beginGesture();
   }
-  function moveDrag(e: ReactPointerEvent<HTMLDivElement>) {
-    const start = drag.current;
+  function onPointerMove(e: ReactPointerEvent<HTMLDivElement>) {
+    if (!pointers.current.has(e.pointerId) || !gesture.current || !mediaSize || !stageRef.current) return;
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const start = gesture.current;
+    const now = centre();
+    const toSticker = 512 / stageRef.current.clientWidth; // screen pixels -> sticker pixels
+    const zoom = start.distance > 0 && now.distance > 0
+      ? Math.min(MAX_ZOOM, Math.max(1, start.framing.zoom * (now.distance / start.distance)))
+      : start.framing.zoom;
+    const zoomed = { ...start.framing, zoom };
+    const from = placement(mediaSize.width, mediaSize.height, fit, zoomed);
+    onFraming(pan(zoomed, from, (now.x - start.x) * toSticker, (now.y - start.y) * toSticker));
+  }
+  function onPointerUp(e: ReactPointerEvent<HTMLDivElement>) {
+    pointers.current.delete(e.pointerId);
+    beginGesture(); // e.g. lifting one finger of a pinch continues as a drag
+  }
+
+  // Scroll wheel / trackpad zoom. Needs a non-passive listener so the page doesn't scroll instead.
+  useEffect(() => {
     const stage = stageRef.current;
-    if (!start || !stage || !box) return;
-    const toSticker = 512 / stage.clientWidth; // screen pixels -> sticker pixels
-    const from = placement(mediaSize!.width, mediaSize!.height, fit, start.framing);
-    onFraming(pan(start.framing, from, (e.clientX - start.x) * toSticker, (e.clientY - start.y) * toSticker));
-  }
-  function endDrag() {
-    drag.current = null;
-  }
+    if (!stage || !mediaSize) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const current = liveFraming.current;
+      const zoom = Math.min(MAX_ZOOM, Math.max(1, current.zoom * Math.exp(-e.deltaY * 0.002)));
+      onFraming({ ...current, zoom });
+    };
+    stage.addEventListener("wheel", onWheel, { passive: false });
+    return () => stage.removeEventListener("wheel", onWheel);
+  }, [mediaSize, onFraming]);
+
+  const framed = framing.zoom !== 1 || framing.panX !== 0.5 || framing.panY !== 0.5;
 
   const label = clip.kind === "gif" ? "GIF" : clip.kind === "video" ? "Video" : "Photo";
   const badge = loading ? "" : duration ? `${label} · ${formatSeconds(duration)}` : label;
@@ -157,11 +200,11 @@ export function ClipPreview({
     <section className="clip" aria-label="Preview and trim">
       <div
         ref={stageRef}
-        className={`clip-stage checker is-${fit}${pannable ? " is-pannable" : ""}`}
-        onPointerDown={startDrag}
-        onPointerMove={moveDrag}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
+        className={`clip-stage checker is-${fit}${mediaSize ? " is-adjustable" : ""}${pannable ? " is-pannable" : ""}`}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
       >
         {clip.display === "video" && (
           <video
@@ -194,7 +237,16 @@ export function ClipPreview({
             }}
           />
         )}
-        {pannable && !loading && <span className="clip-pan-hint">Drag to move</span>}
+        {framed && !loading && (
+          <button
+            type="button"
+            className="clip-reset"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => onFraming({ zoom: 1, panX: 0.5, panY: 0.5 })}
+          >
+            Reset
+          </button>
+        )}
         {loading && <span className="clip-loading">Loading preview…</span>}
         {!loading && clip.display === "video" && !playable && (
           <span className="clip-loading">Preview isn't available, but it can still be converted</span>
@@ -247,24 +299,9 @@ export function ClipPreview({
       )}
       {hint && <p className="hint" id="trim-hint">{hint}</p>}
       {!loading && mediaSize && (
-        <label className="zoom">
-          <span className="zoom-label">Zoom</span>
-          <input
-            id="zoom"
-            type="range"
-            min={1}
-            max={MAX_ZOOM}
-            step={0.05}
-            value={framing.zoom}
-            onChange={(e) => onFraming({ ...framing, zoom: Number(e.target.value) })}
-          />
-          <span className="zoom-value">{framing.zoom.toFixed(1)}×</span>
-          {(framing.zoom !== 1 || framing.panX !== 0.5 || framing.panY !== 0.5) && (
-            <button type="button" className="link-button" onClick={() => onFraming({ zoom: 1, panX: 0.5, panY: 0.5 })}>
-              Reset
-            </button>
-          )}
-        </label>
+        <p className="hint frame-hint" id="frame-hint">
+          Pinch or scroll on the picture to zoom, and drag to move it. What you see is what the sticker shows.
+        </p>
       )}
     </section>
   );

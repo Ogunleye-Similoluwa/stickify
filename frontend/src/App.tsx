@@ -7,11 +7,13 @@ import { FileDrop, LinkInput, SourceTabs, type SourceTab } from "./components/So
 import { Footer, HowTo, Hero } from "./components/StaticSections";
 import { useServerStatus } from "./hooks/useServerStatus";
 import { FitToggle } from "./components/FitToggle";
+import { MotionToggle, type Motion } from "./components/MotionToggle";
 import { ApiError, resolveLink, stickerFromFile, stickerFromLink, type Sticker, type StickerFit } from "./lib/api";
 import { MAX_UPLOAD_BYTES } from "./lib/config";
 import { animatedImageDuration, looksLikeXLink } from "./lib/media";
 import { lookupX } from "./lib/x";
 import { DEFAULT_FRAMING, type Framing } from "./lib/framing";
+import { clampSeconds } from "./lib/plan";
 import { CancelledError, StickerError, cancelConversion, canConvertInBrowser, convertInBrowser, converterReady, warmUpConverter } from "./lib/browserConvert";
 import { initialSelection, round1, timingFor, type Selection, type StickerMode } from "./lib/trim";
 
@@ -27,6 +29,7 @@ export default function App() {
   const [mode, setMode] = useState<StickerMode>("animated");
   const [fit, setFit] = useState<StickerFit>("fit");
   const [framing, setFraming] = useState<Framing>(DEFAULT_FRAMING);
+  const [motion, setMotion] = useState<Motion>("smooth");
   const [mediaSize, setMediaSize] = useState<{ width: number; height: number } | null>(null);
 
   const [clip, setClip] = useState<Clip | null>(null);
@@ -43,6 +46,8 @@ export default function App() {
   const [waking, setWaking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sticker, setSticker] = useState<Sticker | null>(null);
+  const [gifVideo, setGifVideo] = useState<Blob | null>(null);
+  const [gifPending, setGifPending] = useState(false);
 
   const filePreviewUrl = useRef<string | null>(null);
   const loadToken = useRef(0);
@@ -224,7 +229,7 @@ export default function App() {
     if (!source) return null;
     const timing = timingFor(duration ? selection : null, mode);
     return [tab, source, mode, fit, timing.start ?? "", timing.seconds ?? "",
-      framing.zoom.toFixed(2), framing.panX.toFixed(3), framing.panY.toFixed(3)].join("|");
+      framing.zoom.toFixed(2), framing.panX.toFixed(3), framing.panY.toFixed(3), motion].join("|");
   }
 
   /** Starts (or reuses) an in-browser conversion; resolves null if the browser path isn't possible. */
@@ -237,7 +242,7 @@ export default function App() {
       if (!source) return null;
       return convertInBrowser(
         source.blob,
-        { mode, fit, start: timing.start ?? 0, seconds: timing.seconds ?? null, framing, sourceSize: mediaSize },
+        { mode, fit, start: timing.start ?? 0, seconds: timing.seconds ?? null, framing, sourceSize: mediaSize, motion },
         source.still,
       );
     })();
@@ -245,6 +250,32 @@ export default function App() {
     headStart.current = { key, promise };
     return promise;
   }
+
+  // Once a sticker is ready, also make a looping MP4 so phones can send it to WhatsApp as a GIF.
+  useEffect(() => {
+    setGifVideo(null);
+    if (!sticker || sticker.mode !== "animated") return;
+    let cancelled = false;
+    const timing = timingFor(duration ? selection : null, mode);
+    setGifPending(true);
+    (async () => {
+      const { gifVideoSupported, makeGifVideo } = await import("./lib/native/gifVideo");
+      if (!(await gifVideoSupported())) return;
+      const source = await sourceForBrowser();
+      if (!source || cancelled) return;
+      const video = await makeGifVideo(
+        source.blob,
+        { mode, fit, start: timing.start ?? 0, seconds: clampSeconds(timing.seconds ?? null), framing, motion },
+        mediaSize,
+      );
+      if (!cancelled) setGifVideo(video);
+    })()
+      .catch((err) => console.warn("Couldn't make the GIF video", err))
+      .finally(() => !cancelled && setGifPending(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [sticker]); // eslint-disable-line react-hooks/exhaustive-deps -- settings are fixed while the result is shown
 
   const clipSettled = !!clip && !clipLoading && (clip.kind === "photo" || !!duration);
   useEffect(() => {
@@ -364,6 +395,7 @@ export default function App() {
 
             <ModeToggle mode={mode} stillOnly={stillOnly} onChange={setMode} />
             <FitToggle fit={fit} onChange={(next) => { setFit(next); setFraming(DEFAULT_FRAMING); }} />
+            {mode === "animated" && !stillOnly && <MotionToggle motion={motion} onChange={setMotion} />}
 
             <button className={`cta${converting ? " is-loading" : ""}`} type="submit" id="submit" disabled={converting}>
               <span className="cta-label">{converting ? convertLabel : "Make sticker"}</span>
@@ -379,6 +411,8 @@ export default function App() {
         {sticker && (
           <ResultCard
             sticker={sticker}
+            gifVideo={gifVideo}
+            gifVideoPending={gifPending}
             onAgain={startOver}
             onShareFailed={() => setError("Sharing didn't work on this device. Download the sticker instead.")}
           />

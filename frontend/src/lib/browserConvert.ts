@@ -4,7 +4,7 @@ import { DEFAULT_FRAMING } from "./framing";
 import { NativeStickerError, UnsupportedSource, convertNative, nativeSupported, warmPool } from "./native";
 import {
   ANIMATED_STEPS, MAX_ANIMATED_BYTES, MAX_STATIC_BYTES, STATIC_QUALITIES, animatedArgs, clampSeconds,
-  firstStep, prepareArgs, staticArgs, stepsToSkip, type PlanOptions,
+  firstStep, prepareArgs, preparedFps, staticArgs, stepsToSkip, type PlanOptions,
 } from "./plan";
 
 /**
@@ -133,7 +133,7 @@ async function convert(source: Blob, opts: PlanOptions, stillImage: boolean): Pr
     try {
       return await convertNative(source, {
         mode: opts.mode, fit: opts.fit, start: opts.start, seconds: clampSeconds(opts.seconds),
-        framing: opts.framing ?? DEFAULT_FRAMING,
+        framing: opts.framing ?? DEFAULT_FRAMING, motion: opts.motion ?? "smooth",
       },
         stillImage, () => generation !== mine);
     } catch (err) {
@@ -175,9 +175,9 @@ async function convertWith(ffmpeg: FFmpeg, source: Blob, opts: PlanOptions, stil
     }
 
     await run(ffmpeg, prepareArgs(input, "prepared.mkv", opts));
-    let index = firstStep(clampSeconds(opts.seconds));
+    let index = opts.motion === "sharp" ? 0 : firstStep(clampSeconds(opts.seconds));
     while (index < ANIMATED_STEPS.length) {
-      await run(ffmpeg, animatedArgs("prepared.mkv", "sticker.webp", ANIMATED_STEPS[index]));
+      await run(ffmpeg, animatedArgs("prepared.mkv", "sticker.webp", ANIMATED_STEPS[index], preparedFps(opts)));
       const out = await sizeOf(ffmpeg, "sticker.webp");
       const size = out?.length ?? -1;
       if (out && size > 0 && size <= MAX_ANIMATED_BYTES) return asSticker(out, "animated");

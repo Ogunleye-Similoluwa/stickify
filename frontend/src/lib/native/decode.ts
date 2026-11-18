@@ -17,13 +17,15 @@ export function drawSticker(
   const shownW = turned ? height : width;
   const shownH = turned ? width : height;
   const box = placement(shownW, shownH, fit, framing, size);
-  const scale = box.w / shownW;
+  // Scale along the source's own axes (they swap when the video is rotated a quarter turn).
+  const scaleX = turned ? box.h / shownH : box.w / shownW;
+  const scaleY = turned ? box.w / shownW : box.h / shownH;
   ctx.clearRect(0, 0, size, size);
   ctx.save();
   ctx.translate(box.x + box.w / 2, box.y + box.h / 2);
   ctx.rotate((rotation * Math.PI) / 180);
   ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(source, (-width * scale) / 2, (-height * scale) / 2, width * scale, height * scale);
+  ctx.drawImage(source, (-width * scaleX) / 2, (-height * scaleY) / 2, width * scaleX, height * scaleY);
   ctx.restore();
 }
 

@@ -3,8 +3,14 @@ import type { StickerMode, Timing } from "./trim";
 
 export type MediaKind = "gif" | "video" | "photo";
 
-/** "fill" crops to a square; "fit" keeps the whole picture with transparent space around it. */
-export type StickerFit = "fill" | "fit";
+/**
+ * "fit" keeps the whole picture with transparent space around it, "fill" crops to a square,
+ * "stretch" fills the square edge to edge by stretching the picture.
+ */
+export type StickerFit = "fit" | "fill" | "stretch";
+
+/** The server only knows fit and fill; stretch falls back to fill there. */
+export const serverFit = (fit: StickerFit): "fit" | "fill" => (fit === "fit" ? "fit" : "fill");
 
 /** What an X post contains, from POST /api/media/resolve. */
 export interface MediaInfo {
@@ -74,7 +80,7 @@ export async function resolveLink(url: string): Promise<MediaInfo> {
 }
 
 export async function stickerFromLink(url: string, mode: StickerMode, fit: StickerFit, timing: Timing): Promise<Sticker> {
-  const body: Record<string, unknown> = { url, mode, fit };
+  const body: Record<string, unknown> = { url, mode, fit: serverFit(fit) };
   if (timing.start != null) body.startSeconds = timing.start;
   if (timing.seconds != null) body.seconds = timing.seconds;
   const res = await call("/api/stickers/from-link", {
@@ -89,7 +95,7 @@ export async function stickerFromFile(file: File, mode: StickerMode, fit: Sticke
   const body = new FormData();
   body.append("file", file);
   body.append("mode", mode);
-  body.append("fit", fit);
+  body.append("fit", serverFit(fit));
   if (timing.start != null) body.append("start", String(timing.start));
   if (timing.seconds != null) body.append("seconds", String(timing.seconds));
   const res = await call("/api/stickers", { method: "POST", body });
