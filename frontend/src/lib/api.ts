@@ -70,6 +70,31 @@ export async function checkHealth(): Promise<boolean> {
   }
 }
 
+/** Whether the server has the Stickify WhatsApp number set up ("Send to WhatsApp"). */
+export async function whatsAppAvailable(): Promise<boolean> {
+  try {
+    const res = await call("/api/health", { cache: "no-store" });
+    const body = (await res.json()) as { whatsapp?: boolean };
+    return body.whatsapp === true;
+  } catch {
+    return false;
+  }
+}
+
+export interface Handoff {
+  code: string;
+  /** wa.me link that opens a chat with the Stickify number, with "sticker CODE" typed in. */
+  link: string;
+}
+
+/** Leaves the sticker with the server under a short code; WhatsApp replies with it when the code is sent. */
+export async function handOff(sticker: Blob): Promise<Handoff> {
+  const body = new FormData();
+  body.append("sticker", sticker, "sticker.webp");
+  const res = await call("/api/handoff", { method: "POST", body });
+  return (await res.json()) as Handoff;
+}
+
 export async function resolveLink(url: string): Promise<MediaInfo> {
   const res = await call("/api/media/resolve", {
     method: "POST",
