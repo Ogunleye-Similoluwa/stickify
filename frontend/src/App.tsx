@@ -11,6 +11,7 @@ import { ApiError, resolveLink, stickerFromFile, stickerFromLink, type Sticker, 
 import { MAX_UPLOAD_BYTES } from "./lib/config";
 import { animatedImageDuration, looksLikeXLink } from "./lib/media";
 import { lookupX } from "./lib/x";
+import { StickerError, canConvertInBrowser, convertInBrowser, converterReady, warmUpConverter } from "./lib/browserConvert";
 import { initialSelection, round1, timingFor, type Selection, type StickerMode } from "./lib/trim";
 
 /** Show the "server is waking up" note if a request takes longer than this. */
@@ -31,9 +32,11 @@ export default function App() {
   const [playable, setPlayable] = useState(false);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
+  const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [linkLoading, setLinkLoading] = useState(false);
 
   const [converting, setConverting] = useState(false);
+  const [convertLabel, setConvertLabel] = useState("Making sticker…");
   const [waking, setWaking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sticker, setSticker] = useState<Sticker | null>(null);
@@ -54,6 +57,7 @@ export default function App() {
     setPlayable(false);
     setSelection(null);
     setResolvedUrl(null);
+    setMediaUrl(null);
   }, []);
 
   useEffect(() => clearClip, [clearClip]);
@@ -61,6 +65,7 @@ export default function App() {
   /** Called once the clip's length is known (or known to be unknown). */
   const clipReady = useCallback((kind: Clip["kind"], length: number | null, canPlay: boolean) => {
     setClipLoading(false);
+    warmUpConverter(); // likely about to convert: fetch the converter in the background
     setPlayable(canPlay);
     if (kind === "photo") {
       setMode("static");
@@ -124,6 +129,7 @@ export default function App() {
       if (token !== loadToken.current) return;
       if (!direct.ok) server.markUp();
       setResolvedUrl(link);
+      setMediaUrl(info.mediaUrl);
       if (info.kind === "photo") {
         setClip({ src: info.mediaUrl, kind: "photo", display: "image", knownDuration: null });
         clipReady("photo", null, false);
@@ -173,34 +179,86 @@ export default function App() {
   }
 
   // ----- convert -----
+
+  /** The file to convert in the browser: the upload, or the media from the X post. */
+  async function sourceForBrowser(): Promise<{ blob: Blob; still: boolean } | null> {
+    if (tab === "upload") {
+      if (!file) return null;
+      const type = file.type || "";
+      return { blob: file, still: type.startsWith("image/") && clip?.kind === "photo" };
+    }
+    let media = resolvedUrl === urlInput() ? mediaUrl : null;
+    let kind = clip?.kind;
+    if (!media) {
+      // Not loaded yet (e.g. "Make sticker" pressed straight after pasting).
+      const direct = await lookupX(urlInput());
+      if (!direct.ok) return null;
+      media = direct.info.mediaUrl;
+      kind = direct.info.kind;
+    }
+    const res = await fetch(media, { referrerPolicy: "no-referrer" });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    if (blob.size > MAX_UPLOAD_BYTES) return null;
+    return { blob, still: kind === "photo" };
+  }
+
+  const urlInput = () => url.trim();
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     const timing = timingFor(duration ? selection : null, mode);
 
-    let request: () => Promise<Sticker>;
+    let serverRequest: () => Promise<Sticker>;
     if (tab === "link") {
-      const link = url.trim();
+      const link = urlInput();
       if (!link) return setError("Paste a link to an X post first.");
-      request = () => stickerFromLink(link, mode, fit, link === resolvedUrl ? timing : {});
+      serverRequest = () => stickerFromLink(link, mode, fit, link === resolvedUrl ? timing : {});
     } else {
       if (!file) return setError("Choose a GIF, video or image first.");
       if (file.size > MAX_UPLOAD_BYTES) return setError("That file is over 25 MB. Try a shorter clip.");
-      request = () => stickerFromFile(file, mode, fit, timing);
+      serverRequest = () => stickerFromFile(file, mode, fit, timing);
     }
 
     setConverting(true);
-    const wakeTimer = window.setTimeout(() => setWaking(true), WAKE_NOTICE_MS);
     try {
-      setSticker(await request());
-      server.markUp();
-    } catch (err) {
-      const apiErr = err as ApiError;
-      setError(apiErr.message);
-      if (apiErr.offline) server.markDown();
+      // Fast path: convert on this device. Falls back to the server if the browser can't.
+      if (canConvertInBrowser()) {
+        try {
+          setConvertLabel(converterReady() ? "Making sticker…" : "Getting the converter ready…");
+          const source = await sourceForBrowser();
+          if (source) {
+            const pending = convertInBrowser(source.blob, { mode, fit, start: timing.start ?? 0, seconds: timing.seconds ?? null }, source.still);
+            setConvertLabel(converterReady() ? "Making sticker…" : "Getting the converter ready…");
+            const readyCheck = window.setInterval(() => converterReady() && setConvertLabel("Making sticker…"), 300);
+            try {
+              setSticker(await pending);
+              return;
+            } finally {
+              window.clearInterval(readyCheck);
+            }
+          }
+        } catch (err) {
+          if (err instanceof StickerError) return setError(err.message);
+          // anything else: try the server instead
+        }
+      }
+
+      setConvertLabel("Making sticker…");
+      const wakeTimer = window.setTimeout(() => setWaking(true), WAKE_NOTICE_MS);
+      try {
+        setSticker(await serverRequest());
+        server.markUp();
+      } catch (err) {
+        const apiErr = err as ApiError;
+        setError(apiErr.message);
+        if (apiErr.offline) server.markDown();
+      } finally {
+        window.clearTimeout(wakeTimer);
+        setWaking(false);
+      }
     } finally {
-      window.clearTimeout(wakeTimer);
-      setWaking(false);
       setConverting(false);
     }
   }
@@ -251,7 +309,7 @@ export default function App() {
             <FitToggle fit={fit} onChange={setFit} />
 
             <button className={`cta${converting ? " is-loading" : ""}`} type="submit" id="submit" disabled={converting}>
-              <span className="cta-label">{converting ? "Making sticker…" : "Make sticker"}</span>
+              <span className="cta-label">{converting ? convertLabel : "Make sticker"}</span>
               <span className="spinner" aria-hidden="true" />
             </button>
             {error && <p className="error" id="error" role="alert">{error}</p>}

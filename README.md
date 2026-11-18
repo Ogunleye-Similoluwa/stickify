@@ -11,6 +11,12 @@ Paste a link or upload a file, and Stickify returns a 512×512 WebP with a trans
 
 ## How it works
 
+Stickers are made **in the browser** with ffmpeg compiled to WebAssembly, using the same recipe as the server
+(one resize pass to 512×512, then WebP quality steps until the file fits WhatsApp's limits). X posts are looked up
+directly through the public fxtwitter API. The converter (~30 MB) is downloaded once and cached.
+
+The Spring Boot API does the same work as a fallback for browsers that can't run the converter:
+
 ```
 Browser ──► POST /api/stickers            (upload)
         └─► POST /api/stickers/from-link  (X post link)
@@ -23,7 +29,7 @@ Browser ──► POST /api/stickers            (upload)
 ```
 
 1. **Link resolving:** the post ID is extracted from the URL and looked up through a public embed API to find the attached GIF, video or photo. Media is only downloaded from X's own `twimg.com` hosts.
-2. **Conversion:** ffmpeg scales the media to fit 512×512, pads it with transparency and encodes WebP. If the result is over WhatsApp's limit, it retries with a lower quality and frame rate until it fits.
+2. **Conversion:** ffmpeg scales the media to 512×512 (cropping to fill, or padding with transparency to show the whole picture) and encodes WebP. If the result is over WhatsApp's limit, it retries with a lower quality and frame rate until it fits.
 3. **Response:** the sticker comes back as `image/webp`, with headers describing the result.
 
 ## Project structure
