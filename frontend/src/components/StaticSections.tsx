@@ -1,4 +1,4 @@
-import { ANDROID_APP_URL, REPO_URL } from "../lib/config";
+import { REPO_URL } from "../lib/config";
 
 export function Hero() {
   return (
@@ -35,10 +35,10 @@ export function HowTo() {
           </p>
         </li>
         <li>
-          <h3>Android phone</h3>
+          <h3>Install it</h3>
           <p>
-            Install the free <a href={ANDROID_APP_URL}>Stickify app</a>, then tap <strong>Share to WhatsApp</strong> and pick{" "}
-            <strong>Stickify</strong>. It adds the sticker straight to WhatsApp's sticker tray.
+            Tap <strong>Install app</strong> (or <strong>Add to Home Screen</strong> on iPhone). On Android you can then share an
+            X post straight to Stickify from the X app.
           </p>
         </li>
       </ol>

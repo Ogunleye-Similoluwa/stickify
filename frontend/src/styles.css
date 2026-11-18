@@ -541,3 +541,32 @@ code { font-size: .92em; background: var(--surface-2); border: 1px solid var(--l
 }
 
 .share-hint a { color: var(--accent); font-weight: 600; }
+
+.top-right { display: flex; align-items: center; gap: 10px; }
+.install { position: relative; }
+.install-button {
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font: 600 13px/1 var(--body);
+  cursor: pointer;
+}
+.install-help {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: 230px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  font-size: 13px;
+  line-height: 1.45;
+  z-index: 10;
+}
+.top { position: relative; z-index: 20; }

@@ -1,4 +1,5 @@
 import type { ServerState } from "../hooks/useServerStatus";
+import { InstallButton } from "./InstallButton";
 import { Logo } from "./Logo";
 
 interface Props {
@@ -15,10 +16,13 @@ export function Header({ status, statusLabel }: Props) {
         </span>
         Stickify
       </a>
-      <span className="status" data-state={status}>
-        <span className="dot" />
-        <span id="status-text">{statusLabel}</span>
-      </span>
+      <div className="top-right">
+        <InstallButton />
+        <span className="status" data-state={status}>
+          <span className="dot" />
+          <span id="status-text">{statusLabel}</span>
+        </span>
+      </div>
     </header>
   );
 }

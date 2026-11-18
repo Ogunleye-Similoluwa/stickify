@@ -160,6 +160,19 @@ export default function App() {
     }
   }
 
+  // Shared into the installed app from the X app (share menu): the link arrives in ?url=, ?text= or ?title=.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shared = ["url", "text", "title"].map((k) => params.get(k) ?? "").join(" ");
+    const link = shared.match(/https?:\/\/\S+/g)?.find(looksLikeXLink);
+    if (link) {
+      setTab("link");
+      setUrl(link);
+      void loadLink(link);
+      window.history.replaceState(null, "", window.location.pathname); // keep the address clean
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- once, on start
+
   // Pasting an X link anywhere on the page switches to the link tab and loads it.
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
