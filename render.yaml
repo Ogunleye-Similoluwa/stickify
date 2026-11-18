@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: stickify-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      # Replace with your GitHub Pages address so only your site can call the API.
+      - key: ALLOWED_ORIGINS
+        value: "*"
+      - key: MAX_CONCURRENT_JOBS
+        value: "1"
+      - key: RATE_LIMIT_REQUESTS
+        value: "30"

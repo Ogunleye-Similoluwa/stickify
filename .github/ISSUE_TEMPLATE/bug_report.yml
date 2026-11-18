@@ -1,0 +1,31 @@
+name: Bug report
+description: Something isn't working
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, and what went wrong?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: input
+    id: link
+    attributes:
+      label: Link or file type
+      description: The X link you pasted, or the type of file you uploaded (GIF, MP4…)
+  - type: input
+    id: device
+    attributes:
+      label: Device and browser
+      placeholder: e.g. Samsung A15, Chrome
+  - type: textarea
+    id: error
+    attributes:
+      label: Error message or screenshot

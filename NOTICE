@@ -1,0 +1,8 @@
+Stickify
+Copyright 2026 Similoluwa Ogunleye
+
+This product is licensed under the Apache License, Version 2.0.
+See the LICENSE file for details.
+
+Stickify uses ffmpeg (https://ffmpeg.org), which is distributed separately under
+its own license and is not included in this repository.
