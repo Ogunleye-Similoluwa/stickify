@@ -8,9 +8,9 @@ services:
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
-      # Replace with your GitHub Pages address so only your site can call the API.
+      # Only the GitHub Pages site may call the API from a browser.
       - key: ALLOWED_ORIGINS
-        value: "*"
+        value: "https://ogunleye-similoluwa.github.io"
       - key: MAX_CONCURRENT_JOBS
         value: "1"
       - key: RATE_LIMIT_REQUESTS
