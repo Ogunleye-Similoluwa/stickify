@@ -112,6 +112,46 @@ class XMediaResolverTest {
     }
 
     @Test
+    void readsXEmbedServiceAnswers() throws Exception {
+        JsonNode post = mapper.readTree("""
+                {"mediaDetails":[{"type":"video","original_info":{"width":1920,"height":1080},
+                  "video_info":{"duration_millis":9301,"variants":[
+                    {"content_type":"application/x-mpegURL","url":"https://video.twimg.com/pl/a.m3u8"},
+                    {"content_type":"video/mp4","bitrate":832000,"url":"https://video.twimg.com/vid/640x360/c.mp4"},
+                    {"content_type":"video/mp4","bitrate":10368000,"url":"https://video.twimg.com/vid/1920x1080/f.mp4"}]}}]}
+                """);
+        assertThat(XMediaResolver.chooseMedia(XMediaResolver.syndicationToMedia(post, mapper)))
+                .hasValueSatisfying(choice -> {
+                    assertThat(choice.kind()).isEqualTo("video");
+                    assertThat(choice.url()).isEqualTo("https://video.twimg.com/vid/640x360/c.mp4");
+                    assertThat(choice.durationSeconds()).isEqualTo(9.301);
+                });
+    }
+
+    @Test
+    void readsEmbedServiceGifsAndPhotos() throws Exception {
+        JsonNode gif = mapper.readTree("""
+                {"mediaDetails":[{"type":"animated_gif","video_info":{"variants":[
+                    {"content_type":"video/mp4","bitrate":0,"url":"https://video.twimg.com/tweet_video/g.mp4"}]}}]}
+                """);
+        assertThat(XMediaResolver.chooseMedia(XMediaResolver.syndicationToMedia(gif, mapper)))
+                .hasValueSatisfying(choice -> {
+                    assertThat(choice.kind()).isEqualTo("gif");
+                    assertThat(choice.url()).isEqualTo("https://video.twimg.com/tweet_video/g.mp4");
+                });
+        JsonNode photo = mapper.readTree("""
+                {"mediaDetails":[{"type":"photo","media_url_https":"https://pbs.twimg.com/media/a.jpg"}]}
+                """);
+        assertThat(XMediaResolver.chooseMedia(XMediaResolver.syndicationToMedia(photo, mapper)))
+                .hasValueSatisfying(choice -> assertThat(choice.photo()).isTrue());
+    }
+
+    @Test
+    void makesTheEmbedToken() {
+        assertThat(XMediaResolver.syndicationToken("1585341984679469056")).startsWith("3uchycv2wqc");
+    }
+
+    @Test
     void onlyTrustsXMediaHosts() {
         assertThat(XMediaResolver.isXMediaHost("https://video.twimg.com/a.mp4")).isTrue();
         assertThat(XMediaResolver.isXMediaHost("https://pbs.twimg.com/media/a.jpg")).isTrue();
