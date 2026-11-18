@@ -7,8 +7,8 @@ interface Props {
 
 export function FitToggle({ fit, onChange }: Props) {
   const options: { value: StickerFit; label: string }[] = [
-    { value: "fill", label: "Fill square" },
     { value: "fit", label: "Show whole" },
+    { value: "fill", label: "Fill square" },
   ];
   return (
     <fieldset className="options">

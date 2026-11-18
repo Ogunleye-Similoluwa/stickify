@@ -22,7 +22,7 @@ export default function App() {
   const [url, setUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [mode, setMode] = useState<StickerMode>("animated");
-  const [fit, setFit] = useState<StickerFit>("fill");
+  const [fit, setFit] = useState<StickerFit>("fit");
 
   const [clip, setClip] = useState<Clip | null>(null);
   const [clipLoading, setClipLoading] = useState(false);
