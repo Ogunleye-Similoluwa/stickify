@@ -26,10 +26,14 @@
   const statusEl = $("status");
   const statusText = $("status-text");
 
+  const shareBtn = $("share");
+  const shareHint = $("share-hint");
+
   if (config.repoUrl) $("repo-link").href = config.repoUrl;
 
   let activeTab = "link";
   let objectUrl = null;
+  let stickerFile = null;
 
   // ----- server status (also wakes a sleeping free-tier server) -----
   function setStatus(state, text) {
@@ -171,11 +175,29 @@
     const kind = headers.get("X-Sticker-Mode") === "static" ? "Still" : "Animated";
     const kb = Math.round(blob.size / 1024);
     meta.textContent = `${kind} · 512 × 512 · ${kb} KB · WebP`;
+
+    // Phones (and some desktop browsers) can hand the file straight to WhatsApp
+    // through the system share menu.
+    stickerFile = new File([blob], "sticker.webp", { type: "image/webp" });
+    const canShare = typeof navigator.canShare === "function" && navigator.canShare({ files: [stickerFile] });
+    shareBtn.hidden = !canShare;
+    shareHint.hidden = !canShare;
+
     result.hidden = false;
     if (window.matchMedia("(max-width: 860px)").matches) {
       result.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   }
+
+  shareBtn.addEventListener("click", async () => {
+    if (!stickerFile) return;
+    try {
+      await navigator.share({ files: [stickerFile] });
+    } catch (err) {
+      if (err && err.name === "AbortError") return; // user closed the share menu
+      showError("Sharing didn't work on this device. Download the sticker instead.");
+    }
+  });
 
   $("again").addEventListener("click", () => {
     result.hidden = true;

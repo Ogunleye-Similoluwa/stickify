@@ -319,6 +319,9 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .checker img { width: 100%; height: 100%; object-fit: contain; }
 
 .result h2 { margin: 0 0 4px; font: 700 22px/1.2 var(--display); letter-spacing: -.02em; }
+.share svg { width: 18px; height: 18px; flex: none; }
+.actions .cta.small:not(.share) { background: var(--surface-2); color: var(--text); border: 1px solid var(--line); }
+.share-hint { margin: 12px 0 0; color: var(--muted); font-size: 13px; }
 .meta { margin: 0 0 14px; color: var(--muted); font-size: 14px; }
 .actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .ghost {
