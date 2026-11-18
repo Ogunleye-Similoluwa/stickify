@@ -18,6 +18,13 @@ export class StickerError extends Error {}
 
 let loading: Promise<FFmpeg> | null = null;
 let ready = false;
+let current: FFmpeg | null = null;
+let busy = false;
+/** Downloaded once; reused if the converter is restarted after a cancel. */
+let coreUrls: Promise<{ coreURL: string; wasmURL: string }> | null = null;
+
+/** Thrown when a conversion was stopped because newer settings replaced it. */
+export class CancelledError extends Error {}
 
 export function canConvertInBrowser(): boolean {
   return typeof WebAssembly === "object" && typeof Worker !== "undefined";
@@ -28,15 +35,18 @@ export const converterReady = (): boolean => ready;
 function load(): Promise<FFmpeg> {
   loading ??= (async () => {
     const [{ FFmpeg }, { toBlobURL }] = await Promise.all([import("@ffmpeg/ffmpeg"), import("@ffmpeg/util")]);
+    coreUrls ??= Promise.all([
+      toBlobURL(`${CORE_BASE}/ffmpeg-core.js`, "text/javascript"),
+      toBlobURL(`${CORE_BASE}/ffmpeg-core.wasm`, "application/wasm"),
+    ]).then(([coreURL, wasmURL]) => ({ coreURL, wasmURL }));
     const ffmpeg = new FFmpeg();
-    await ffmpeg.load({
-      coreURL: await toBlobURL(`${CORE_BASE}/ffmpeg-core.js`, "text/javascript"),
-      wasmURL: await toBlobURL(`${CORE_BASE}/ffmpeg-core.wasm`, "application/wasm"),
-    });
+    await ffmpeg.load(await coreUrls);
     ready = true;
+    current = ffmpeg;
     return ffmpeg;
   })().catch((err) => {
     loading = null;
+    coreUrls = null;
     throw err;
   });
   return loading;
@@ -72,10 +82,29 @@ async function sizeOf(ffmpeg: FFmpeg, name: string): Promise<Uint8Array | null> 
 }
 
 async function cleanUp(ffmpeg: FFmpeg, names: string[]): Promise<void> {
-  for (const name of names) await ffmpeg.deleteFile(name).catch(() => {});
+  for (const name of names) {
+    try {
+      await ffmpeg.deleteFile(name);
+    } catch {
+      // missing file, or the converter was stopped
+    }
+  }
 }
 
 let queue: Promise<unknown> = Promise.resolve();
+let cancelled = false;
+
+/**
+ * Stops the conversion that's running (ffmpeg.wasm can't be interrupted any other way),
+ * so newer settings don't have to wait for it. The converter restarts in well under a second.
+ */
+export function cancelConversion(): void {
+  if (!busy || !current) return;
+  cancelled = true;
+  current.terminate();
+  current = null;
+  loading = null;
+}
 
 /** Converts one file at a time; ffmpeg.wasm can only run a single command at once. */
 export function convertInBrowser(source: Blob, opts: PlanOptions, stillImage: boolean): Promise<Sticker> {
@@ -86,6 +115,19 @@ export function convertInBrowser(source: Blob, opts: PlanOptions, stillImage: bo
 
 async function convert(source: Blob, opts: PlanOptions, stillImage: boolean): Promise<Sticker> {
   const ffmpeg = await load();
+  busy = true;
+  cancelled = false;
+  try {
+    return await convertWith(ffmpeg, source, opts, stillImage);
+  } catch (err) {
+    if (cancelled) throw new CancelledError("Replaced by newer settings");
+    throw err;
+  } finally {
+    busy = false;
+  }
+}
+
+async function convertWith(ffmpeg: FFmpeg, source: Blob, opts: PlanOptions, stillImage: boolean): Promise<Sticker> {
   const input = inputName(source.type);
   const files = [input, "prepared.mkv", "sticker.webp"];
   await ffmpeg.writeFile(input, new Uint8Array(await source.arrayBuffer()));

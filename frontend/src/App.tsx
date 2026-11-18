@@ -11,7 +11,7 @@ import { ApiError, resolveLink, stickerFromFile, stickerFromLink, type Sticker, 
 import { MAX_UPLOAD_BYTES } from "./lib/config";
 import { animatedImageDuration, looksLikeXLink } from "./lib/media";
 import { lookupX } from "./lib/x";
-import { StickerError, canConvertInBrowser, convertInBrowser, converterReady, warmUpConverter } from "./lib/browserConvert";
+import { CancelledError, StickerError, cancelConversion, canConvertInBrowser, convertInBrowser, converterReady, warmUpConverter } from "./lib/browserConvert";
 import { initialSelection, round1, timingFor, type Selection, type StickerMode } from "./lib/trim";
 
 /** Show the "server is waking up" note if a request takes longer than this. */
@@ -43,10 +43,14 @@ export default function App() {
 
   const filePreviewUrl = useRef<string | null>(null);
   const loadToken = useRef(0);
+  /** A sticker being made in the background for the current settings. */
+  const headStart = useRef<{ key: string; promise: Promise<Sticker | null> } | null>(null);
 
   // ----- clip lifecycle -----
   const clearClip = useCallback(() => {
     loadToken.current++;
+    cancelConversion();
+    headStart.current = null;
     if (filePreviewUrl.current) {
       URL.revokeObjectURL(filePreviewUrl.current);
       filePreviewUrl.current = null;
@@ -205,6 +209,43 @@ export default function App() {
 
   const urlInput = () => url.trim();
 
+  // ----- head start: make the sticker in the background while the user looks at the preview -----
+
+  /** Identifies the sticker the current settings would produce. */
+  function stickerKey(): string | null {
+    const source = tab === "upload"
+      ? file && `${file.name}:${file.size}:${file.lastModified}`
+      : resolvedUrl === urlInput() && mediaUrl;
+    if (!source) return null;
+    const timing = timingFor(duration ? selection : null, mode);
+    return [tab, source, mode, fit, timing.start ?? "", timing.seconds ?? ""].join("|");
+  }
+
+  /** Starts (or reuses) an in-browser conversion; resolves null if the browser path isn't possible. */
+  function browserJob(key: string): Promise<Sticker | null> {
+    if (headStart.current?.key === key) return headStart.current.promise;
+    cancelConversion();
+    const timing = timingFor(duration ? selection : null, mode);
+    const promise = (async () => {
+      const source = await sourceForBrowser();
+      if (!source) return null;
+      return convertInBrowser(source.blob, { mode, fit, start: timing.start ?? 0, seconds: timing.seconds ?? null }, source.still);
+    })();
+    promise.catch(() => {}); // errors are handled when the user actually asks for the sticker
+    headStart.current = { key, promise };
+    return promise;
+  }
+
+  const clipSettled = !!clip && !clipLoading && (clip.kind === "photo" || !!duration);
+  useEffect(() => {
+    if (!clipSettled || converting || sticker || !canConvertInBrowser()) return;
+    const key = stickerKey();
+    if (!key || headStart.current?.key === key) return;
+    // Wait until the user stops dragging before starting over with the new settings.
+    const timer = window.setTimeout(() => browserJob(key), 600);
+    return () => window.clearTimeout(timer);
+  });
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -223,25 +264,25 @@ export default function App() {
 
     setConverting(true);
     try {
-      // Fast path: convert on this device. Falls back to the server if the browser can't.
-      if (canConvertInBrowser()) {
+      // Fast path: convert on this device (often already finished in the background).
+      // Falls back to the server if the browser can't.
+      const key = canConvertInBrowser() ? stickerKey() ?? `once:${Date.now()}` : null;
+      if (key) {
+        const readyCheck = window.setInterval(
+          () => setConvertLabel(converterReady() ? "Making sticker…" : "Getting the converter ready…"), 250);
         try {
           setConvertLabel(converterReady() ? "Making sticker…" : "Getting the converter ready…");
-          const source = await sourceForBrowser();
-          if (source) {
-            const pending = convertInBrowser(source.blob, { mode, fit, start: timing.start ?? 0, seconds: timing.seconds ?? null }, source.still);
-            setConvertLabel(converterReady() ? "Making sticker…" : "Getting the converter ready…");
-            const readyCheck = window.setInterval(() => converterReady() && setConvertLabel("Making sticker…"), 300);
-            try {
-              setSticker(await pending);
-              return;
-            } finally {
-              window.clearInterval(readyCheck);
-            }
+          const result = await browserJob(key);
+          if (result) {
+            setSticker(result);
+            return;
           }
         } catch (err) {
           if (err instanceof StickerError) return setError(err.message);
+          if (err instanceof CancelledError) headStart.current = null;
           // anything else: try the server instead
+        } finally {
+          window.clearInterval(readyCheck);
         }
       }
 
@@ -264,6 +305,8 @@ export default function App() {
   }
 
   function startOver() {
+    cancelConversion();
+    headStart.current = null;
     setSticker(null);
     setUrl("");
     setFile(null);
