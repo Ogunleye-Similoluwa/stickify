@@ -26,7 +26,7 @@ public record WhatsAppProperties(
         @DefaultValue("") String number,
         @DefaultValue("") String verifyToken,
         @DefaultValue("") String appSecret,
-        @DefaultValue("https://graph.facebook.com/v21.0") String graphBaseUrl,
+        @DefaultValue("https://graph.facebook.com/v25.0") String graphBaseUrl,
         @DefaultValue("30m") Duration handoffTtl,
         @DefaultValue("300") int maxHandoffs) {
 
