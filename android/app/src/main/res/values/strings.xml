@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Stickify</string>
+    <string name="share_label">Add to WhatsApp stickers</string>
+    <string name="how_it_works">Make a sticker on the Stickify website, tap Share and pick Stickify. It\'s added here and sent straight to WhatsApp\'s sticker tray.</string>
+    <string name="make_sticker">Make a sticker</string>
+    <string name="import_file">Open a file</string>
+    <string name="empty">No stickers yet. Share one from the Stickify website, or open a downloaded .webp file.</string>
+    <string name="add_to_whatsapp">Add to WhatsApp</string>
+    <string name="adding">Adding sticker…</string>
+    <string name="added_to">Added to %1$s. Opening WhatsApp…</string>
+    <string name="in_whatsapp">Done. The pack is in WhatsApp\'s sticker tray.</string>
+    <string name="whatsapp_said">WhatsApp couldn\'t add it: %1$s</string>
+    <string name="not_added">Not added to WhatsApp. Tap Add to WhatsApp to try again.</string>
+    <string name="no_whatsapp">WhatsApp isn\'t installed on this phone.</string>
+    <string name="update_whatsapp">Please update WhatsApp, then try again.</string>
+    <string name="cant_read">Couldn\'t read that file.</string>
+    <string name="repeats_note">WhatsApp needs 3, so it repeats them for now</string>
+    <string name="remove_question">Remove this sticker from the pack?</string>
+    <string name="remove">Remove</string>
+    <string name="sticker">Sticker</string>
+    <plurals name="sticker_count">
+        <item quantity="one">%d sticker</item>
+        <item quantity="other">%d stickers</item>
+    </plurals>
+</resources>

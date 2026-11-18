@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A rounded sticker with a peeled corner, on the launcher's safe zone (108dp canvas). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M40,32h28a8,8 0,0 1,8 8v16l-20,20h-16a8,8 0,0 1,-8 -8v-28a8,8 0,0 1,8 -8z" />
+    <path
+        android:fillColor="#C8F5D9"
+        android:pathData="M76,56l-20,20v-12a8,8 0,0 1,8 -8z" />
+    <path
+        android:fillColor="#0F1512"
+        android:pathData="M45,48a3.5,3.5 0,1 1,7 0a3.5,3.5 0,1 1,-7 0z M60,48a3.5,3.5 0,1 1,7 0a3.5,3.5 0,1 1,-7 0z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#0F1512"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:pathData="M45,58c4,5 13,5 17,0" />
+</vector>
