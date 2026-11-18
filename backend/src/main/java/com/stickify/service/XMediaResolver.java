@@ -126,8 +126,16 @@ public class XMediaResolver {
                 continue;
             }
             boolean gif = "gif".equalsIgnoreCase(item.path("type").asText());
+            Integer width = intOrNull(item.path("width"));
+            Integer height = intOrNull(item.path("height"));
+            Variant smaller = smallestUsefulVariant(item.path("variants"));
+            if (smaller != null) {
+                url = smaller.url();
+                width = smaller.width();
+                height = smaller.height();
+            }
             MediaChoice candidate = new MediaChoice(url, gif ? "gif" : "video",
-                    positiveOrNull(item.path("duration")), intOrNull(item.path("width")), intOrNull(item.path("height")));
+                    positiveOrNull(item.path("duration")), width, height);
             if (gif) {
                 return Optional.of(candidate);
             }
@@ -146,6 +154,44 @@ public class XMediaResolver {
             }
         }
         return Optional.empty();
+    }
+
+    /** Smallest size that still fills a sticker; anything larger only slows conversion down. */
+    static final int USEFUL_SIZE = 512;
+
+    private static final Pattern VARIANT_SIZE = Pattern.compile("/(\\d+)x(\\d+)/");
+
+    record Variant(String url, int width, int height) {
+        int longSide() {
+            return Math.max(width, height);
+        }
+    }
+
+    /**
+     * X keeps several MP4 copies of each video (for example 480x270, 640x360, 1280x720).
+     * Picks the smallest one whose long side is at least {@link #USEFUL_SIZE}, or the largest if none are.
+     */
+    static Variant smallestUsefulVariant(JsonNode variants) {
+        Variant best = null;
+        Variant largest = null;
+        for (JsonNode item : variants) {
+            String url = item.path("url").asText("");
+            if (!"video/mp4".equalsIgnoreCase(item.path("content_type").asText()) || url.isEmpty()) {
+                continue;
+            }
+            Matcher size = VARIANT_SIZE.matcher(url);
+            if (!size.find()) {
+                continue;
+            }
+            Variant variant = new Variant(url, Integer.parseInt(size.group(1)), Integer.parseInt(size.group(2)));
+            if (largest == null || variant.longSide() > largest.longSide()) {
+                largest = variant;
+            }
+            if (variant.longSide() >= USEFUL_SIZE && (best == null || variant.longSide() < best.longSide())) {
+                best = variant;
+            }
+        }
+        return best != null ? best : largest;
     }
 
     private static Double positiveOrNull(JsonNode node) {

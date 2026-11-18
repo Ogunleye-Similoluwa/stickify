@@ -38,6 +38,12 @@ public class FfmpegConverter {
 
     static final int[] STATIC_QUALITIES = {90, 75, 60, 45, 30, 15};
 
+    /**
+     * libwebp effort (0-6). Level 6 is about ten times slower than 4 for files only ~2% smaller,
+     * which matters on small servers.
+     */
+    static final int COMPRESSION_LEVEL = 4;
+
     private final StickerProperties properties;
 
     public FfmpegConverter(StickerProperties properties) {
@@ -51,18 +57,33 @@ public class FfmpegConverter {
     }
 
     private StickerResult convertAnimated(Path input, ConversionOptions options, Path workDir) {
+        // Decode, trim and resize once; every attempt below then starts from a small 512x512 clip.
+        Path prepared = workDir.resolve("prepared.mkv");
+        List<String> prepare = baseCommand(options, input);
+        prepare.addAll(List.of(
+                "-t", String.format(Locale.ROOT, "%.2f", options.seconds()),
+                "-vf", "fps=" + ANIMATED_STEPS[0][0] + "," + scaleAndPadFilter(),
+                "-c:v", "ffv1",
+                "-an",
+                prepared.toString()));
+        run(prepare, workDir);
+
         Path output = workDir.resolve("sticker.webp");
-        for (int[] step : ANIMATED_STEPS) {
-            int fps = step[0];
-            int quality = step[1];
-            List<String> command = baseCommand(options, input);
+        int index = firstStep(options.seconds());
+        while (index < ANIMATED_STEPS.length) {
+            int fps = ANIMATED_STEPS[index][0];
+            int quality = ANIMATED_STEPS[index][1];
+            List<String> command = new ArrayList<>(List.of(
+                    properties.ffmpegPath(), "-hide_banner", "-loglevel", "error", "-y",
+                    "-i", prepared.toString()));
+            if (fps != ANIMATED_STEPS[0][0]) {
+                command.addAll(List.of("-vf", "fps=" + fps));
+            }
             command.addAll(List.of(
-                    "-t", String.format(Locale.ROOT, "%.2f", options.seconds()),
-                    "-vf", "fps=" + fps + "," + scaleAndPadFilter(),
                     "-c:v", "libwebp_anim",
                     "-lossless", "0",
                     "-q:v", String.valueOf(quality),
-                    "-compression_level", "6",
+                    "-compression_level", String.valueOf(COMPRESSION_LEVEL),
                     "-loop", "0",
                     "-an",
                     output.toString()));
@@ -72,9 +93,29 @@ public class FfmpegConverter {
             if (size > 0 && size <= properties.maxAnimatedBytes()) {
                 return new StickerResult(read(output), StickerMode.ANIMATED, quality);
             }
+            index += stepsToSkip(size, properties.maxAnimatedBytes());
         }
         throw new ConversionException(
                 "This clip is too detailed to fit WhatsApp's 500 KB sticker limit. Try a shorter clip.");
+    }
+
+    /** Clips this long almost never fit at the top quality, so they start a little lower. */
+    static final double LONG_CLIP_SECONDS = 4;
+
+    static int firstStep(double seconds) {
+        return seconds > LONG_CLIP_SECONDS ? 2 : 0;
+    }
+
+    /** Jump further down the quality ladder when the result is far over the limit, to save attempts. */
+    static int stepsToSkip(long size, long limit) {
+        double ratio = (double) size / limit;
+        if (ratio > 2.5) {
+            return 3;
+        }
+        if (ratio > 1.6) {
+            return 2;
+        }
+        return 1;
     }
 
     private StickerResult convertStatic(Path input, ConversionOptions options, Path workDir) {
@@ -86,7 +127,7 @@ public class FfmpegConverter {
                     "-vf", scaleAndPadFilter(),
                     "-c:v", "libwebp",
                     "-q:v", String.valueOf(quality),
-                    "-compression_level", "6",
+                    "-compression_level", String.valueOf(COMPRESSION_LEVEL),
                     "-an",
                     output.toString()));
             run(command, workDir);

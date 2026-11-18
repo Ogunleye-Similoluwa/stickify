@@ -70,6 +70,48 @@ class XMediaResolverTest {
     }
 
     @Test
+    void picksSmallestVideoCopyThatFillsASticker() throws Exception {
+        JsonNode media = mapper.readTree("""
+                {"videos":[{"type":"video","url":"https://video.twimg.com/vid/1920x1080/full.mp4",
+                            "duration":9.3,"width":1920,"height":1080,
+                            "variants":[
+                              {"content_type":"application/x-mpegURL","url":"https://video.twimg.com/pl/a.m3u8"},
+                              {"content_type":"video/mp4","url":"https://video.twimg.com/vid/480x270/a.mp4"},
+                              {"content_type":"video/mp4","url":"https://video.twimg.com/vid/1280x720/b.mp4"},
+                              {"content_type":"video/mp4","url":"https://video.twimg.com/vid/640x360/c.mp4?tag=14"},
+                              {"content_type":"video/mp4","url":"https://video.twimg.com/vid/1920x1080/full.mp4"}]}]}
+                """);
+        assertThat(XMediaResolver.chooseMedia(media))
+                .hasValueSatisfying(choice -> {
+                    assertThat(choice.url()).isEqualTo("https://video.twimg.com/vid/640x360/c.mp4?tag=14");
+                    assertThat(choice.width()).isEqualTo(640);
+                    assertThat(choice.height()).isEqualTo(360);
+                    assertThat(choice.durationSeconds()).isEqualTo(9.3);
+                });
+    }
+
+    @Test
+    void usesLargestCopyWhenAllAreSmall() throws Exception {
+        JsonNode variants = mapper.readTree("""
+                [{"content_type":"video/mp4","url":"https://video.twimg.com/vid/320x320/a.mp4"},
+                 {"content_type":"video/mp4","url":"https://video.twimg.com/vid/480x480/b.mp4"}]
+                """);
+        assertThat(XMediaResolver.smallestUsefulVariant(variants).url())
+                .isEqualTo("https://video.twimg.com/vid/480x480/b.mp4");
+        assertThat(XMediaResolver.smallestUsefulVariant(mapper.readTree("[]"))).isNull();
+    }
+
+    @Test
+    void portraitVideoUsesItsLongSide() throws Exception {
+        JsonNode variants = mapper.readTree("""
+                [{"content_type":"video/mp4","url":"https://video.twimg.com/vid/320x568/a.mp4"},
+                 {"content_type":"video/mp4","url":"https://video.twimg.com/vid/720x1280/b.mp4"}]
+                """);
+        assertThat(XMediaResolver.smallestUsefulVariant(variants).url())
+                .isEqualTo("https://video.twimg.com/vid/320x568/a.mp4");
+    }
+
+    @Test
     void onlyTrustsXMediaHosts() {
         assertThat(XMediaResolver.isXMediaHost("https://video.twimg.com/a.mp4")).isTrue();
         assertThat(XMediaResolver.isXMediaHost("https://pbs.twimg.com/media/a.jpg")).isTrue();

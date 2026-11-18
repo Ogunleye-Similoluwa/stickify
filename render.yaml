@@ -7,6 +7,11 @@ services:
     dockerContext: ./backend
     healthCheckPath: /api/health
     autoDeploy: true
+    # Only redeploy when the server changes, not on website-only pushes.
+    buildFilter:
+      paths:
+        - backend/**
+        - render.yaml
     envVars:
       # Only the GitHub Pages and Netlify sites may call the API from a browser.
       - key: ALLOWED_ORIGINS
