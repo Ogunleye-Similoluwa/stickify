@@ -4,9 +4,9 @@ Turn a GIF, a video, or the media in an X (Twitter) post into a **WhatsApp-ready
 
 Paste a link or upload a file, and Stickify returns a 512×512 WebP with a transparent border, automatically compressed to fit WhatsApp's limits (500 KB animated, 100 KB still).
 
-**Try it:** [stickify-wa.netlify.app](https://stickify-wa.netlify.app) · [ogunleye-similoluwa.github.io/stickify](https://ogunleye-similoluwa.github.io/stickify/)
+**Try it:** [stickify-wa.pages.dev](https://stickify-wa.pages.dev) · [ogunleye-similoluwa.github.io/stickify](https://ogunleye-similoluwa.github.io/stickify/) · [stickify-wa.netlify.app](https://stickify-wa.netlify.app)
 
-- **Frontend:** React and TypeScript (Vite), deployed on GitHub Pages and Netlify
+- **Frontend:** React and TypeScript (Vite), deployed on Cloudflare Pages, GitHub Pages and Netlify
 - **Backend:** Java 21 + Spring Boot (MVC), using ffmpeg for conversion, deployed on Render with Docker
 
 ## How it works
@@ -98,6 +98,10 @@ docker run -p 8080:8080 stickify-api
 1. In the repository, go to **Settings → Pages** and set the source to **GitHub Actions**.
 2. Under **Settings → Secrets and variables → Actions → Variables**, add `API_BASE_URL` with your Render URL.
 3. Push to `main`, or run the **Deploy frontend** workflow.
+
+**Frontend (Cloudflare Pages)**
+1. In Cloudflare, go to **Workers & Pages → Create → Pages → Connect to Git** and pick this repository.
+2. Root directory `frontend`, build command `npm ci && npm run build`, output `dist`, variable `NODE_VERSION=22`.
 
 **Frontend (Netlify)**
 1. In Netlify, choose **Add new site → Import an existing project** and pick this repository. It reads `netlify.toml`.
