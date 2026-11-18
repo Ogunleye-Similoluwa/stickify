@@ -6,7 +6,8 @@ import { ResultCard } from "./components/ResultCard";
 import { FileDrop, LinkInput, SourceTabs, type SourceTab } from "./components/SourceInputs";
 import { Footer, HowTo, Hero } from "./components/StaticSections";
 import { useServerStatus } from "./hooks/useServerStatus";
-import { ApiError, resolveLink, stickerFromFile, stickerFromLink, type Sticker } from "./lib/api";
+import { FitToggle } from "./components/FitToggle";
+import { ApiError, resolveLink, stickerFromFile, stickerFromLink, type Sticker, type StickerFit } from "./lib/api";
 import { MAX_UPLOAD_BYTES } from "./lib/config";
 import { animatedImageDuration, looksLikeXLink } from "./lib/media";
 import { initialSelection, round1, timingFor, type Selection, type StickerMode } from "./lib/trim";
@@ -21,6 +22,7 @@ export default function App() {
   const [url, setUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [mode, setMode] = useState<StickerMode>("animated");
+  const [fit, setFit] = useState<StickerFit>("fill");
 
   const [clip, setClip] = useState<Clip | null>(null);
   const [clipLoading, setClipLoading] = useState(false);
@@ -174,11 +176,11 @@ export default function App() {
     if (tab === "link") {
       const link = url.trim();
       if (!link) return setError("Paste a link to an X post first.");
-      request = () => stickerFromLink(link, mode, link === resolvedUrl ? timing : {});
+      request = () => stickerFromLink(link, mode, fit, link === resolvedUrl ? timing : {});
     } else {
       if (!file) return setError("Choose a GIF, video or image first.");
       if (file.size > MAX_UPLOAD_BYTES) return setError("That file is over 25 MB. Try a shorter clip.");
-      request = () => stickerFromFile(file, mode, timing);
+      request = () => stickerFromFile(file, mode, fit, timing);
     }
 
     setConverting(true);
@@ -233,12 +235,14 @@ export default function App() {
                 playable={playable}
                 selection={selection}
                 mode={mode}
+                fit={fit}
                 onVideoReady={(length, canPlay) => clipReady(clip.kind, length, canPlay)}
                 onSelect={setSelection}
               />
             )}
 
             <ModeToggle mode={mode} stillOnly={stillOnly} onChange={setMode} />
+            <FitToggle fit={fit} onChange={setFit} />
 
             <button className={`cta${converting ? " is-loading" : ""}`} type="submit" id="submit" disabled={converting}>
               <span className="cta-label">{converting ? "Making sticker…" : "Make sticker"}</span>

@@ -19,6 +19,7 @@ import com.stickify.model.ConversionOptions;
 import com.stickify.model.LinkConversionRequest;
 import com.stickify.model.MediaInfo;
 import com.stickify.model.SourceMedia;
+import com.stickify.model.StickerFit;
 import com.stickify.model.StickerMode;
 import com.stickify.model.StickerResult;
 
@@ -41,13 +42,14 @@ public class StickerService {
         this.jobs = new Semaphore(Math.max(1, properties.maxConcurrentJobs()), true);
     }
 
-    public StickerResult fromUpload(MultipartFile file, StickerMode mode, Double startSeconds, Double seconds) {
+    public StickerResult fromUpload(MultipartFile file, StickerMode mode, Double startSeconds, Double seconds,
+            StickerFit fit) {
         if (file == null || file.isEmpty()) {
             throw new InvalidInputException("Choose a GIF, video or image to upload");
         }
         try {
             SourceMedia media = SourceMedia.of(file.getBytes(), file.getContentType());
-            return convert(media, options(mode, startSeconds, seconds));
+            return convert(media, options(mode, startSeconds, seconds, fit));
         } catch (IOException e) {
             throw new InvalidInputException("We couldn't read that upload. Please try again.");
         }
@@ -55,7 +57,7 @@ public class StickerService {
 
     public StickerResult fromLink(LinkConversionRequest request) {
         SourceMedia media = resolver.resolve(request.url());
-        return convert(media, options(request.mode(), request.startSeconds(), request.seconds()));
+        return convert(media, options(request.mode(), request.startSeconds(), request.seconds(), request.fit()));
     }
 
     public MediaInfo describeLink(String url) {
@@ -67,10 +69,14 @@ public class StickerService {
      * ffmpeg simply stops at the end of shorter clips.
      */
     ConversionOptions options(StickerMode mode, Double startSeconds, Double seconds) {
+        return options(mode, startSeconds, seconds, StickerFit.FILL);
+    }
+
+    ConversionOptions options(StickerMode mode, Double startSeconds, Double seconds, StickerFit fit) {
         double requested = seconds == null || seconds.isNaN() ? properties.maxSeconds() : seconds;
         double clamped = Math.min(Math.max(requested, MIN_SECONDS), properties.maxSeconds());
         double start = startSeconds == null || startSeconds.isNaN() ? 0 : startSeconds;
-        return new ConversionOptions(mode, start, clamped);
+        return new ConversionOptions(mode, start, clamped, fit);
     }
 
     static final double MIN_SECONDS = 0.5;

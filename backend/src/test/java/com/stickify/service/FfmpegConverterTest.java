@@ -17,6 +17,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import com.stickify.config.StickerProperties;
 import com.stickify.model.ConversionOptions;
+import com.stickify.model.StickerFit;
 import com.stickify.model.StickerMode;
 import com.stickify.model.StickerResult;
 
@@ -65,7 +66,7 @@ class FfmpegConverterTest {
     @Test
     void makesLongAnimatedStickerFromTheMiddle(@TempDir Path workDir) {
         StickerResult result = converter.convert(sampleVideo,
-                new ConversionOptions(StickerMode.ANIMATED, 1.5, 6), workDir);
+                new ConversionOptions(StickerMode.ANIMATED, 1.5, 6, StickerFit.FIT), workDir);
 
         assertThat(result.mode()).isEqualTo(StickerMode.ANIMATED);
         assertThat(result.sizeBytes()).isPositive().isLessThanOrEqualTo(500_000);

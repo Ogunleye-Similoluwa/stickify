@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 import com.stickify.config.StickerProperties;
 import com.stickify.exception.ConversionException;
 import com.stickify.model.ConversionOptions;
+import com.stickify.model.StickerFit;
 import com.stickify.model.StickerMode;
 import com.stickify.model.StickerResult;
 
@@ -62,7 +63,7 @@ public class FfmpegConverter {
         List<String> prepare = baseCommand(options, input);
         prepare.addAll(List.of(
                 "-t", String.format(Locale.ROOT, "%.2f", options.seconds()),
-                "-vf", "fps=" + ANIMATED_STEPS[0][0] + "," + scaleAndPadFilter(),
+                "-vf", "fps=" + ANIMATED_STEPS[0][0] + "," + sizeFilter(options.fit()),
                 "-c:v", "ffv1",
                 "-an",
                 prepared.toString()));
@@ -124,7 +125,7 @@ public class FfmpegConverter {
             List<String> command = baseCommand(options, input);
             command.addAll(List.of(
                     "-frames:v", "1",
-                    "-vf", scaleAndPadFilter(),
+                    "-vf", sizeFilter(options.fit()),
                     "-c:v", "libwebp",
                     "-q:v", String.valueOf(quality),
                     "-compression_level", String.valueOf(COMPRESSION_LEVEL),
@@ -147,6 +148,18 @@ public class FfmpegConverter {
         }
         command.addAll(List.of("-i", input.toString()));
         return command;
+    }
+
+    static String sizeFilter(StickerFit fit) {
+        return fit == StickerFit.FIT ? scaleAndPadFilter() : scaleAndCropFilter();
+    }
+
+    /** Cover 512x512 keeping the aspect ratio, then crop the overflow from the centre. */
+    static String scaleAndCropFilter() {
+        return "scale=" + STICKER_SIZE + ":" + STICKER_SIZE
+                + ":force_original_aspect_ratio=increase:flags=lanczos,"
+                + "crop=" + STICKER_SIZE + ":" + STICKER_SIZE + ","
+                + "format=rgba";
     }
 
     /** Fit inside 512x512 keeping the aspect ratio, then pad the rest with transparency. */
