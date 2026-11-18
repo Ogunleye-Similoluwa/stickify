@@ -540,5 +540,4 @@ code { font-size: .92em; background: var(--surface-2); border: 1px solid var(--l
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 
-.cta.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); box-shadow: none; }
-.pending { align-self: center; color: var(--muted); font-size: 13px; }
+.share-hint a { color: var(--accent); font-weight: 600; }

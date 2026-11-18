@@ -13,7 +13,6 @@ import { MAX_UPLOAD_BYTES } from "./lib/config";
 import { animatedImageDuration, looksLikeXLink } from "./lib/media";
 import { lookupX } from "./lib/x";
 import { DEFAULT_FRAMING, type Framing } from "./lib/framing";
-import { clampSeconds } from "./lib/plan";
 import { CancelledError, StickerError, cancelConversion, canConvertInBrowser, convertInBrowser, converterReady, warmUpConverter } from "./lib/browserConvert";
 import { initialSelection, round1, timingFor, type Selection, type StickerMode } from "./lib/trim";
 
@@ -46,8 +45,6 @@ export default function App() {
   const [waking, setWaking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sticker, setSticker] = useState<Sticker | null>(null);
-  const [gifVideo, setGifVideo] = useState<Blob | null>(null);
-  const [gifPending, setGifPending] = useState(false);
 
   const filePreviewUrl = useRef<string | null>(null);
   const loadToken = useRef(0);
@@ -251,32 +248,6 @@ export default function App() {
     return promise;
   }
 
-  // Once a sticker is ready, also make a looping MP4 so phones can send it to WhatsApp as a GIF.
-  useEffect(() => {
-    setGifVideo(null);
-    if (!sticker || sticker.mode !== "animated") return;
-    let cancelled = false;
-    const timing = timingFor(duration ? selection : null, mode);
-    setGifPending(true);
-    (async () => {
-      const { gifVideoSupported, makeGifVideo } = await import("./lib/native/gifVideo");
-      if (!(await gifVideoSupported())) return;
-      const source = await sourceForBrowser();
-      if (!source || cancelled) return;
-      const video = await makeGifVideo(
-        source.blob,
-        { mode, fit, start: timing.start ?? 0, seconds: clampSeconds(timing.seconds ?? null), framing, motion },
-        mediaSize,
-      );
-      if (!cancelled) setGifVideo(video);
-    })()
-      .catch((err) => console.warn("Couldn't make the GIF video", err))
-      .finally(() => !cancelled && setGifPending(false));
-    return () => {
-      cancelled = true;
-    };
-  }, [sticker]); // eslint-disable-line react-hooks/exhaustive-deps -- settings are fixed while the result is shown
-
   const clipSettled = !!clip && !clipLoading && (clip.kind === "photo" || !!duration);
   useEffect(() => {
     if (!clipSettled || converting || sticker || !canConvertInBrowser()) return;
@@ -411,8 +382,6 @@ export default function App() {
         {sticker && (
           <ResultCard
             sticker={sticker}
-            gifVideo={gifVideo}
-            gifVideoPending={gifPending}
             onAgain={startOver}
             onShareFailed={() => setError("Sharing didn't work on this device. Download the sticker instead.")}
           />

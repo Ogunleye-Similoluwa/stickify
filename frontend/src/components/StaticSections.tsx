@@ -1,4 +1,4 @@
-import { REPO_URL } from "../lib/config";
+import { ANDROID_APP_URL, REPO_URL } from "../lib/config";
 
 export function Hero() {
   return (
@@ -35,10 +35,10 @@ export function HowTo() {
           </p>
         </li>
         <li>
-          <h3>Phone only?</h3>
+          <h3>Android phone</h3>
           <p>
-            Use <strong>Share to WhatsApp</strong>, or save the file and import it with a sticker-pack app such as
-            Sticker.ly. WhatsApp needs at least three stickers in a pack.
+            Install the free <a href={ANDROID_APP_URL}>Stickify app</a>, then tap <strong>Share to WhatsApp</strong> and pick{" "}
+            <strong>Stickify</strong>. It adds the sticker straight to WhatsApp's sticker tray.
           </p>
         </li>
       </ol>

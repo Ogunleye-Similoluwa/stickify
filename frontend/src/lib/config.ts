@@ -18,3 +18,6 @@ function resolveApiBase(): string {
 export const API_BASE = resolveApiBase();
 export const REPO_URL = import.meta.env.VITE_REPO_URL || DEFAULT_REPO;
 export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+
+/** The Android app that adds stickers straight to WhatsApp (WhatsApp only accepts them from an app on phones). */
+export const ANDROID_APP_URL = "https://github.com/Ogunleye-Similoluwa/stickify/releases/latest/download/stickify.apk";
