@@ -9,7 +9,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import com.stickify.web.RateLimitInterceptor;
 
 @Configuration
-@EnableConfigurationProperties(StickerProperties.class)
+@EnableConfigurationProperties({StickerProperties.class, WhatsAppProperties.class})
 public class WebConfig implements WebMvcConfigurer {
 
     private final StickerProperties properties;
@@ -31,6 +31,6 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(new RateLimitInterceptor(properties.rateLimitRequests(), properties.rateLimitWindow()))
-                .addPathPatterns("/api/stickers/**", "/api/media/**");
+                .addPathPatterns("/api/stickers/**", "/api/media/**", "/api/handoff");
     }
 }

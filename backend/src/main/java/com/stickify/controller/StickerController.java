@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.stickify.config.WhatsAppProperties;
 import com.stickify.model.LinkConversionRequest;
 import com.stickify.model.LinkLookupRequest;
 import com.stickify.model.MediaInfo;
@@ -32,14 +33,17 @@ public class StickerController {
     static final MediaType WEBP = MediaType.parseMediaType("image/webp");
 
     private final StickerService stickerService;
+    private final WhatsAppProperties whatsApp;
 
-    public StickerController(StickerService stickerService) {
+    public StickerController(StickerService stickerService, WhatsAppProperties whatsApp) {
         this.stickerService = stickerService;
+        this.whatsApp = whatsApp;
     }
 
+    /** Also tells the website whether "Send to WhatsApp" is available. */
     @GetMapping("/health")
-    public Map<String, String> health() {
-        return Map.of("status", "ok");
+    public Map<String, Object> health() {
+        return Map.of("status", "ok", "whatsapp", whatsApp.enabled());
     }
 
     /** Converts an uploaded GIF, video or image. */

@@ -21,3 +21,11 @@ stickify:
 logging:
   level:
     com.stickify: INFO
+
+# Stickify WhatsApp number (off until WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID and WHATSAPP_NUMBER are set)
+whatsapp:
+  token: ${WHATSAPP_TOKEN:}
+  phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:}
+  number: ${WHATSAPP_NUMBER:}
+  verify-token: ${WHATSAPP_VERIFY_TOKEN:}
+  app-secret: ${WHATSAPP_APP_SECRET:}
