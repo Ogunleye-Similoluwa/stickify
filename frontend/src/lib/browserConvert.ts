@@ -1,5 +1,6 @@
 import type { FFmpeg } from "@ffmpeg/ffmpeg";
 import type { Sticker } from "./api";
+import { DEFAULT_FRAMING } from "./framing";
 import { NativeStickerError, UnsupportedSource, convertNative, nativeSupported, warmPool } from "./native";
 import {
   ANIMATED_STEPS, MAX_ANIMATED_BYTES, MAX_STATIC_BYTES, STATIC_QUALITIES, animatedArgs, clampSeconds,
@@ -130,7 +131,10 @@ async function convert(source: Blob, opts: PlanOptions, stillImage: boolean): Pr
   if (await nativeSupported()) {
     nativeReady = true;
     try {
-      return await convertNative(source, { mode: opts.mode, fit: opts.fit, start: opts.start, seconds: clampSeconds(opts.seconds) },
+      return await convertNative(source, {
+        mode: opts.mode, fit: opts.fit, start: opts.start, seconds: clampSeconds(opts.seconds),
+        framing: opts.framing ?? DEFAULT_FRAMING,
+      },
         stillImage, () => generation !== mine);
     } catch (err) {
       if (generation !== mine) throw new CancelledError("Replaced by newer settings");

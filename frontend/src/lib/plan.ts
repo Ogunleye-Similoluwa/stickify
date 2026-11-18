@@ -1,4 +1,5 @@
 import type { StickerFit } from "./api";
+import { DEFAULT_FRAMING, framingFilter, type Framing } from "./framing";
 import type { StickerMode } from "./trim";
 import { MAX_SECONDS, MIN_SECONDS } from "./trim";
 
@@ -26,6 +27,18 @@ export interface PlanOptions {
   start: number;
   /** null means "the whole clip, up to the maximum". */
   seconds: number | null;
+  framing?: Framing;
+  /** The picture's size, needed to apply zoom and pan; without it the picture is centred. */
+  sourceSize?: { width: number; height: number } | null;
+}
+
+/** The resize filter for these options: zoom/pan when the source size is known, otherwise centred. */
+export function filterFor(opts: PlanOptions): string {
+  const framing = opts.framing ?? DEFAULT_FRAMING;
+  if (opts.sourceSize && opts.sourceSize.width > 0 && opts.sourceSize.height > 0) {
+    return framingFilter(opts.sourceSize.width, opts.sourceSize.height, opts.fit, framing, STICKER_SIZE);
+  }
+  return sizeFilter(opts.fit);
 }
 
 /** Clips this long almost never fit at top quality, so they start a little lower. */
@@ -62,7 +75,7 @@ export function prepareArgs(input: string, output: string, opts: PlanOptions): s
   return [
     ...seekArgs(opts.start, input),
     "-t", fixed(clampSeconds(opts.seconds)),
-    "-vf", `fps=${ANIMATED_STEPS[0][0]},${sizeFilter(opts.fit)}`,
+    "-vf", `fps=${ANIMATED_STEPS[0][0]},${filterFor(opts)}`,
     "-c:v", "ffv1", "-an", output,
   ];
 }
@@ -81,7 +94,7 @@ export function staticArgs(input: string, output: string, opts: PlanOptions, qua
   return [
     ...seekArgs(isPhoto ? 0 : opts.start, input),
     "-frames:v", "1",
-    "-vf", sizeFilter(opts.fit),
+    "-vf", filterFor(opts),
     "-c:v", "libwebp", "-q:v", String(quality),
     "-compression_level", String(COMPRESSION_LEVEL), "-an", output,
   ];

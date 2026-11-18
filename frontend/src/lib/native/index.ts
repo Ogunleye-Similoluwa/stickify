@@ -1,5 +1,6 @@
 import type { Sticker, StickerFit } from "../api";
 import type { StickerMode } from "../trim";
+import type { Framing } from "../framing";
 import { LIMIT_ANIMATED, LIMIT_STATIC, framesPerSecond, perFrameBudget, qualityFor, sampleIndices, thin } from "./budget";
 import { UnsupportedSource, animatedImageFrames, mp4Frames, photoFrame, type FrameRequest } from "./decode";
 import { encodeAll } from "./encoderPool";
@@ -38,6 +39,7 @@ export interface NativeOptions {
   fit: StickerFit;
   start: number;
   seconds: number;
+  framing: Framing;
 }
 
 const isVideo = (type: string) => type.startsWith("video/") || type === "";
@@ -46,12 +48,14 @@ const isAnimatedImage = (type: string) => type === "image/gif" || type === "imag
 
 async function sourceFrames(blob: Blob, opts: NativeOptions, still: boolean, fps: number, isCancelled: () => boolean): Promise<ImageBitmap[]> {
   const type = blob.type;
-  if (still && !isVideo(type) && !isAnimatedImage(type)) return [await photoFrame(blob, opts.fit)];
-  const req: FrameRequest = { start: opts.start, seconds: opts.seconds, fps, fit: opts.fit, single: opts.mode === "static", isCancelled };
+  if (still && !isVideo(type) && !isAnimatedImage(type)) return [await photoFrame(blob, opts.fit, opts.framing)];
+  const req: FrameRequest = {
+    start: opts.start, seconds: opts.seconds, fps, fit: opts.fit, framing: opts.framing, single: opts.mode === "static", isCancelled,
+  };
   const buffer = await blob.arrayBuffer();
   if (isAnimatedImage(type)) return animatedImageFrames(buffer, type, req);
   if (isVideo(type) && isMp4Family(type)) return mp4Frames(buffer, req);
-  if (type.startsWith("image/")) return [await photoFrame(blob, opts.fit)];
+  if (type.startsWith("image/")) return [await photoFrame(blob, opts.fit, opts.framing)];
   throw new UnsupportedSource(`Can't decode ${type} natively`);
 }
 

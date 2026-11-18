@@ -106,7 +106,10 @@ export function FileDrop({ file, onFile }: DropProps) {
         onDragLeave={(e) => { e.preventDefault(); setOver(false); }}
         onDrop={handleDrop}
       >
-        <input id="file" type="file" accept={ACCEPT} onChange={(e) => onFile(e.target.files?.[0] ?? null)} />
+        <input id="file" type="file" accept={ACCEPT} onChange={(e) => {
+            onFile(e.target.files?.[0] ?? null);
+            e.target.value = ""; // so choosing the same file again still works
+          }} />
         <span className="drop-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24">
             <path d="M12 16V4m0 0-4 4m4-4 4 4M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />

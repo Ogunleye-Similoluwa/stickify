@@ -1,5 +1,6 @@
 import MP4Box from "mp4box";
 import type { StickerFit } from "../api";
+import { DEFAULT_FRAMING, placement, type Framing } from "../framing";
 
 /** Draws a source frame into a 512x512 canvas, cropping (fill) or letterboxing (fit), honouring rotation. */
 export function drawSticker(
@@ -9,15 +10,17 @@ export function drawSticker(
   height: number,
   fit: StickerFit,
   rotation = 0,
+  framing: Framing = DEFAULT_FRAMING,
 ): void {
   const size = ctx.canvas.width;
   const turned = rotation === 90 || rotation === 270;
-  const w = turned ? height : width;
-  const h = turned ? width : height;
-  const scale = fit === "fit" ? Math.min(size / w, size / h) : Math.max(size / w, size / h);
+  const shownW = turned ? height : width;
+  const shownH = turned ? width : height;
+  const box = placement(shownW, shownH, fit, framing, size);
+  const scale = box.w / shownW;
   ctx.clearRect(0, 0, size, size);
   ctx.save();
-  ctx.translate(size / 2, size / 2);
+  ctx.translate(box.x + box.w / 2, box.y + box.h / 2);
   ctx.rotate((rotation * Math.PI) / 180);
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(source, (-width * scale) / 2, (-height * scale) / 2, width * scale, height * scale);
@@ -29,6 +32,7 @@ export interface FrameRequest {
   seconds: number;
   fps: number;
   fit: StickerFit;
+  framing: Framing;
   /** Only the first frame at `start` (still stickers). */
   single?: boolean;
   isCancelled(): boolean;
@@ -114,7 +118,7 @@ export async function mp4Frames(buffer: ArrayBuffer, req: FrameRequest): Promise
       const t = frame.timestamp / 1e6;
       const wanted = req.single ? frames.length === 0 && t + 0.02 >= req.start : t + step / 2 >= target && t < end && t + 0.001 >= req.start - step / 2;
       if (wanted) {
-        drawSticker(ctx, frame, frame.displayWidth, frame.displayHeight, req.fit, rotation);
+        drawSticker(ctx, frame, frame.displayWidth, frame.displayHeight, req.fit, rotation, req.framing);
         frames.push(canvas.transferToImageBitmap());
         target += step;
         while (target <= t) target += step;
@@ -185,7 +189,7 @@ export async function animatedImageFrames(buffer: ArrayBuffer, type: string, req
       // Emit this frame for every output slot it covers.
       while (target < t + duration && target < end && (!req.single || frames.length === 0)) {
         if (target >= req.start - 1e-6) {
-          drawSticker(ctx, image, image.displayWidth, image.displayHeight, req.fit);
+          drawSticker(ctx, image, image.displayWidth, image.displayHeight, req.fit, 0, req.framing);
           frames.push(canvas.transferToImageBitmap());
         }
         target += step;
@@ -203,10 +207,10 @@ export async function animatedImageFrames(buffer: ArrayBuffer, type: string, req
 
 /* ---------------- Photos ---------------- */
 
-export async function photoFrame(blob: Blob, fit: StickerFit): Promise<ImageBitmap> {
+export async function photoFrame(blob: Blob, fit: StickerFit, framing: Framing): Promise<ImageBitmap> {
   const image = await createImageBitmap(blob);
   const canvas = new OffscreenCanvas(512, 512);
-  drawSticker(canvas.getContext("2d")!, image, image.width, image.height, fit);
+  drawSticker(canvas.getContext("2d")!, image, image.width, image.height, fit, 0, framing);
   image.close();
   return canvas.transferToImageBitmap();
 }

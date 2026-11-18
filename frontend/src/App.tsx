@@ -11,6 +11,7 @@ import { ApiError, resolveLink, stickerFromFile, stickerFromLink, type Sticker, 
 import { MAX_UPLOAD_BYTES } from "./lib/config";
 import { animatedImageDuration, looksLikeXLink } from "./lib/media";
 import { lookupX } from "./lib/x";
+import { DEFAULT_FRAMING, type Framing } from "./lib/framing";
 import { CancelledError, StickerError, cancelConversion, canConvertInBrowser, convertInBrowser, converterReady, warmUpConverter } from "./lib/browserConvert";
 import { initialSelection, round1, timingFor, type Selection, type StickerMode } from "./lib/trim";
 
@@ -25,6 +26,8 @@ export default function App() {
   const [file, setFile] = useState<File | null>(null);
   const [mode, setMode] = useState<StickerMode>("animated");
   const [fit, setFit] = useState<StickerFit>("fit");
+  const [framing, setFraming] = useState<Framing>(DEFAULT_FRAMING);
+  const [mediaSize, setMediaSize] = useState<{ width: number; height: number } | null>(null);
 
   const [clip, setClip] = useState<Clip | null>(null);
   const [clipLoading, setClipLoading] = useState(false);
@@ -62,6 +65,8 @@ export default function App() {
     setSelection(null);
     setResolvedUrl(null);
     setMediaUrl(null);
+    setFraming(DEFAULT_FRAMING);
+    setMediaSize(null);
   }, []);
 
   useEffect(() => clearClip, [clearClip]);
@@ -218,7 +223,8 @@ export default function App() {
       : resolvedUrl === urlInput() && mediaUrl;
     if (!source) return null;
     const timing = timingFor(duration ? selection : null, mode);
-    return [tab, source, mode, fit, timing.start ?? "", timing.seconds ?? ""].join("|");
+    return [tab, source, mode, fit, timing.start ?? "", timing.seconds ?? "",
+      framing.zoom.toFixed(2), framing.panX.toFixed(3), framing.panY.toFixed(3)].join("|");
   }
 
   /** Starts (or reuses) an in-browser conversion; resolves null if the browser path isn't possible. */
@@ -229,7 +235,11 @@ export default function App() {
     const promise = (async () => {
       const source = await sourceForBrowser();
       if (!source) return null;
-      return convertInBrowser(source.blob, { mode, fit, start: timing.start ?? 0, seconds: timing.seconds ?? null }, source.still);
+      return convertInBrowser(
+        source.blob,
+        { mode, fit, start: timing.start ?? 0, seconds: timing.seconds ?? null, framing, sourceSize: mediaSize },
+        source.still,
+      );
     })();
     promise.catch(() => {}); // errors are handled when the user actually asks for the sticker
     headStart.current = { key, promise };
@@ -343,13 +353,17 @@ export default function App() {
                 selection={selection}
                 mode={mode}
                 fit={fit}
+                framing={framing}
+                mediaSize={mediaSize}
+                onMediaSize={setMediaSize}
+                onFraming={setFraming}
                 onVideoReady={(length, canPlay) => clipReady(clip.kind, length, canPlay)}
                 onSelect={setSelection}
               />
             )}
 
             <ModeToggle mode={mode} stillOnly={stillOnly} onChange={setMode} />
-            <FitToggle fit={fit} onChange={setFit} />
+            <FitToggle fit={fit} onChange={(next) => { setFit(next); setFraming(DEFAULT_FRAMING); }} />
 
             <button className={`cta${converting ? " is-loading" : ""}`} type="submit" id="submit" disabled={converting}>
               <span className="cta-label">{converting ? convertLabel : "Make sticker"}</span>
