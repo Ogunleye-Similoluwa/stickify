@@ -10,6 +10,7 @@ import { FitToggle } from "./components/FitToggle";
 import { ApiError, resolveLink, stickerFromFile, stickerFromLink, type Sticker, type StickerFit } from "./lib/api";
 import { MAX_UPLOAD_BYTES } from "./lib/config";
 import { animatedImageDuration, looksLikeXLink } from "./lib/media";
+import { lookupX } from "./lib/x";
 import { initialSelection, round1, timingFor, type Selection, type StickerMode } from "./lib/trim";
 
 /** Show the "server is waking up" note if a request takes longer than this. */
@@ -114,9 +115,14 @@ export default function App() {
     setClip({ src: "", kind: "video", display: "image", knownDuration: null });
     const wakeTimer = window.setTimeout(() => setWaking(true), WAKE_NOTICE_MS);
     try {
-      const info = await resolveLink(link);
+      // Ask X directly first (fast); fall back to our server if that doesn't work.
+      const direct = await lookupX(link);
       if (token !== loadToken.current) return;
-      server.markUp();
+      if (!direct.ok && direct.reason === "no-media") throw new ApiError("That post has no GIF, video or photo to use.");
+      if (!direct.ok && direct.reason === "not-found") throw new ApiError("We couldn't find that post. It may be private or deleted.");
+      const info = direct.ok ? direct.info : await resolveLink(link);
+      if (token !== loadToken.current) return;
+      if (!direct.ok) server.markUp();
       setResolvedUrl(link);
       if (info.kind === "photo") {
         setClip({ src: info.mediaUrl, kind: "photo", display: "image", knownDuration: null });
