@@ -1,0 +1,30 @@
+# Runs the API behind Caddy, which gets and renews the HTTPS certificate automatically.
+services:
+  api:
+    build: ../../backend
+    restart: unless-stopped
+    environment:
+      ALLOWED_ORIGINS: "https://ogunleye-similoluwa.github.io,https://stickify-wa.netlify.app"
+      MAX_CONCURRENT_JOBS: "2"
+      RATE_LIMIT_REQUESTS: "30"
+    expose:
+      - "8080"
+
+  caddy:
+    image: caddy:2.8
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
