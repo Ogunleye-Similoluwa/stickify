@@ -101,6 +101,8 @@ export function ClipPreview({ clip, loading, duration, playable, selection, mode
     if (clip.kind === "photo") hint = "Photos become still stickers.";
     else if (!duration) hint = `The sticker will use the whole clip, up to ${MAX_SECONDS} seconds.`;
     else if (still) hint = "Drag to pick the frame for your sticker.";
+    else if (selection && (selection.start > 0 || selection.end < duration))
+      hint = `The preview plays your selection. Drag the handles to change it (up to ${MAX_SECONDS} seconds).`;
     else if (duration > MAX_SECONDS) hint = `Drag the handles to choose up to ${MAX_SECONDS} seconds. The preview plays your selection.`;
     else hint = "The whole clip is selected. Drag the handles to cut it shorter.";
   }
