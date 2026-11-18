@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import com.stickify.config.WhatsAppProperties;
@@ -31,6 +32,7 @@ public class HandoffStore {
     private final SecureRandom random = new SecureRandom();
     private final LinkedHashMap<String, Handoff> waiting = new LinkedHashMap<>();
 
+    @Autowired
     public HandoffStore(WhatsAppProperties properties) {
         this(properties, Clock.systemUTC());
     }
