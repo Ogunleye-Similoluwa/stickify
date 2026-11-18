@@ -4,8 +4,8 @@ on:
   push:
     branches: [main]
     paths: ["backend/**", ".github/workflows/ci.yml"]
+  # Runs on every pull request: "test" is a required check for merging into main.
   pull_request:
-    paths: ["backend/**", ".github/workflows/ci.yml"]
   workflow_dispatch:
 
 jobs:
