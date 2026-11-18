@@ -28,9 +28,13 @@ mvn verify
 # Run the API locally on http://localhost:8080
 mvn spring-boot:run
 
-# Serve the frontend on http://localhost:5500
+# Run the frontend (opens on the address it prints)
 cd ../frontend
-python3 -m http.server 5500
+npm install
+npm run dev
+
+# Frontend checks
+npm run typecheck && npm test
 ```
 
 ## Guidelines
@@ -42,7 +46,7 @@ python3 -m http.server 5500
 - New logic should come with tests.
 
 **Frontend**
-- Plain HTML, CSS and JavaScript, with no build step and no frameworks.
+- React and TypeScript with strict types. Keep logic that can be tested (like trimming) in `src/lib` with tests next to it.
 - It must work on a phone screen and in both light and dark mode.
 
 **Commits and pull requests**

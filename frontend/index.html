@@ -4,144 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Stickify · GIF to WhatsApp sticker</title>
-  <meta name="description" content="Paste an X link or upload a GIF or video and get a WhatsApp-ready sticker in seconds.">
+  <meta name="description" content="Paste an X link or upload a GIF or video, trim it, and get a WhatsApp-ready sticker in seconds.">
   <meta name="theme-color" content="#0f1512">
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
-  <script src="config.js"></script>
-  <script src="app.js" defer></script>
 </head>
 <body>
-  <div class="glow" aria-hidden="true"></div>
-
-  <header class="top">
-    <a class="brand" href="./">
-      <span class="brand-mark" aria-hidden="true">
-        <svg viewBox="0 0 32 32"><path d="M6 4h14l6 6v12a6 6 0 0 1-6 6H10a6 6 0 0 1-6-6V6a2 2 0 0 1 2-2z" fill="currentColor"/><path d="M20 4v4a2 2 0 0 0 2 2h4" fill="none" stroke="var(--bg)" stroke-width="2"/><circle cx="12" cy="16" r="1.6" fill="var(--bg)"/><circle cx="19" cy="16" r="1.6" fill="var(--bg)"/><path d="M11.5 20.5c2.4 2 5.6 2 8 0" fill="none" stroke="var(--bg)" stroke-width="1.8" stroke-linecap="round"/></svg>
-      </span>
-      Stickify
-    </a>
-    <span class="status" id="status" data-state="idle"><span class="dot"></span><span id="status-text">Checking server…</span></span>
-  </header>
-
-  <main class="wrap">
-    <section class="hero">
-      <h1>Turn any GIF into a<br><span class="accent">WhatsApp sticker</span>.</h1>
-      <p class="lede">Paste a link to an X post or upload a GIF, video or image. You get a 512×512 sticker that fits WhatsApp's size limits, ready to send.</p>
-    </section>
-
-    <section class="card" aria-label="Make a sticker">
-      <div class="tabs" role="tablist">
-        <button class="tab is-active" role="tab" aria-selected="true" data-tab="link" id="tab-link">Paste X link</button>
-        <button class="tab" role="tab" aria-selected="false" data-tab="upload" id="tab-upload">Upload file</button>
-      </div>
-
-      <form id="form" novalidate>
-        <div class="pane" data-pane="link">
-          <label class="field-label" for="url">Link to the post</label>
-          <div class="url-row">
-            <input id="url" name="url" type="url" inputmode="url" autocomplete="off"
-                   placeholder="https://x.com/someone/status/1234567890">
-            <button class="ghost load" type="button" id="load">Load</button>
-          </div>
-          <p class="hint">Works with posts that have a GIF, video or photo. Private posts can't be fetched.</p>
-        </div>
-
-        <div class="pane" data-pane="upload" hidden>
-          <label class="drop" id="drop" for="file">
-            <input id="file" name="file" type="file" accept="image/gif,image/png,image/jpeg,image/webp,video/mp4,video/quicktime,video/webm">
-            <span class="drop-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0-4 4m4-4 4 4M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </span>
-            <span class="drop-title" id="drop-title">Drop a GIF, video or image</span>
-            <span class="drop-sub">or tap to choose · up to 25 MB</span>
-          </label>
-        </div>
-
-        <section class="clip" id="clip" hidden aria-label="Preview and trim">
-          <div class="clip-stage checker">
-            <video id="clip-video" muted playsinline preload="auto" hidden></video>
-            <img id="clip-image" alt="Preview of your file" hidden>
-            <span class="clip-loading" id="clip-loading" hidden>Loading preview…</span>
-            <span class="clip-badge" id="clip-badge"></span>
-          </div>
-
-          <div class="trim-wrap" id="trim-wrap" hidden>
-            <div class="trim" id="trim">
-              <div class="trim-track"><div class="trim-fill"></div><div class="trim-playhead" id="playhead"></div></div>
-              <input class="trim-range" id="trim-start" type="range" min="0" max="10" step="0.1" value="0" aria-label="Sticker starts at">
-              <input class="trim-range" id="trim-end" type="range" min="0" max="10" step="0.1" value="10" aria-label="Sticker ends at">
-            </div>
-            <div class="trim-readout">
-              <span><span id="start-label">Start</span> <b id="start-out">0.0 s</b></span>
-              <span id="end-group">End <b id="end-out">0.0 s</b></span>
-              <span id="len-group">Length <b id="len-out">0.0 s</b></span>
-            </div>
-          </div>
-          <p class="hint" id="trim-hint"></p>
-        </section>
-
-        <fieldset class="options">
-          <legend class="field-label">Sticker type</legend>
-          <div class="segmented" role="radiogroup">
-            <label><input type="radio" name="mode" value="animated" checked><span>Animated</span></label>
-            <label><input type="radio" name="mode" value="static"><span>Still</span></label>
-          </div>
-        </fieldset>
-
-        <button class="cta" type="submit" id="submit">
-          <span class="cta-label">Make sticker</span>
-          <span class="spinner" aria-hidden="true"></span>
-        </button>
-        <p class="error" id="error" role="alert" hidden></p>
-        <p class="wake" id="wake" hidden>The server was asleep and is waking up. The first sticker can take up to a minute.</p>
-      </form>
-    </section>
-
-    <section class="result" id="result" hidden aria-live="polite">
-      <div class="result-preview checker">
-        <img id="preview" alt="Your sticker preview">
-      </div>
-      <div class="result-body">
-        <h2>Your sticker is ready</h2>
-        <p class="meta" id="meta"></p>
-        <div class="actions">
-          <button class="cta small share" type="button" id="share" hidden>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m0 0L7.5 7.5M12 3l4.5 4.5M5 12v6a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            Share to WhatsApp
-          </button>
-          <a class="cta small" id="download" download="sticker.webp">Download sticker</a>
-          <button class="ghost" type="button" id="again">Make another</button>
-        </div>
-        <p class="share-hint" id="share-hint" hidden>Pick <strong>WhatsApp</strong> in the share menu, then choose a chat. If it arrives as a photo instead of a sticker, download it and use the steps below.</p>
-      </div>
-    </section>
-
-    <section class="howto" aria-labelledby="howto-title">
-      <h2 id="howto-title">Getting it into WhatsApp</h2>
-      <ol class="steps">
-        <li>
-          <h3>On a computer</h3>
-          <p>Open WhatsApp Web or the desktop app, open any chat (a chat with yourself works), and drag the downloaded <code>.webp</code> file in. It sends as a sticker.</p>
-        </li>
-        <li>
-          <h3>Save it on your phone</h3>
-          <p>Open that chat on your phone, tap the sticker, and choose <strong>Add to Favorites</strong>. It's now in your sticker tray.</p>
-        </li>
-        <li>
-          <h3>Phone only?</h3>
-          <p>Save the file, then import it with a sticker-pack app such as Sticker.ly. WhatsApp needs at least three stickers in a pack.</p>
-        </li>
-      </ol>
-    </section>
-  </main>
-
-  <footer class="foot">
-    <p>Only convert media you have the right to use. Files are processed in memory and deleted right after conversion.</p>
-    <p><a href="https://github.com/Ogunleye-Similoluwa/stickify" id="repo-link">Source on GitHub</a></p>
-  </footer>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>

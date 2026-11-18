@@ -21,12 +21,24 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    defaults:
+      run:
+        working-directory: frontend
     steps:
       - uses: actions/checkout@v4
 
-      - name: Point the site at the API
-        if: ${{ vars.API_BASE_URL != '' }}
-        run: sed -i "s#https://stickify-api.onrender.com#${{ vars.API_BASE_URL }}#" frontend/config.js
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_API_BASE: ${{ vars.API_BASE_URL }}
 
       - uses: actions/configure-pages@v5
         with:
@@ -34,7 +46,7 @@ jobs:
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: frontend
+          path: frontend/dist
 
       - id: deployment
         uses: actions/deploy-pages@v4

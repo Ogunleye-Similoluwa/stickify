@@ -4,7 +4,7 @@ Turn a GIF, a video, or the media in an X (Twitter) post into a **WhatsApp-ready
 
 Paste a link or upload a file, and Stickify returns a 512×512 WebP with a transparent border, automatically compressed to fit WhatsApp's limits (500 KB animated, 100 KB still).
 
-- **Frontend:** static HTML, CSS and JavaScript, deployed on GitHub Pages
+- **Frontend:** React and TypeScript (Vite), deployed on GitHub Pages and Netlify
 - **Backend:** Java 21 + Spring Boot (MVC), using ffmpeg for conversion, deployed on Render with Docker
 
 ## How it works
@@ -36,7 +36,7 @@ backend/                     Spring Boot API
     exception/               Error types and the global error handler
     web/                     Rate limiting
   Dockerfile                 JRE + ffmpeg image
-frontend/                    Static site (GitHub Pages)
+frontend/                    React + TypeScript app (Vite)
 render.yaml                  Render blueprint for the API
 ```
 
@@ -67,10 +67,11 @@ In another terminal:
 
 ```bash
 cd frontend
-python3 -m http.server 5500  # open http://localhost:5500
+npm install
+npm run dev                  # open the address it prints
 ```
 
-When opened on `localhost`, the frontend talks to `http://localhost:8080` automatically.
+When opened on `localhost`, the frontend talks to `http://localhost:8080` automatically. Add `?api=https://...` to the page address to point it at another server.
 
 Or with Docker:
 
@@ -83,14 +84,20 @@ docker run -p 8080:8080 stickify-api
 
 **Backend (Render)**
 1. In Render, choose **New → Blueprint** and select this repository. It reads `render.yaml`.
-2. After the first deploy, set `ALLOWED_ORIGINS` to your GitHub Pages address (for example `https://yourname.github.io`).
+2. Set `ALLOWED_ORIGINS` in `render.yaml` to the addresses of your sites, separated by commas.
 
 **Frontend (GitHub Pages)**
 1. In the repository, go to **Settings → Pages** and set the source to **GitHub Actions**.
 2. Under **Settings → Secrets and variables → Actions → Variables**, add `API_BASE_URL` with your Render URL.
 3. Push to `main`, or run the **Deploy frontend** workflow.
 
-On Render's free plan the API sleeps when idle, so the first request after a while takes up to a minute. The page shows a notice while it wakes up.
+**Frontend (Netlify)**
+1. In Netlify, choose **Add new site → Import an existing project** and pick this repository. It reads `netlify.toml`.
+2. Optionally set `VITE_API_BASE` under **Site configuration → Environment variables**.
+
+Without `VITE_API_BASE`, the site uses `https://stickify-api.onrender.com`.
+
+On Render's free plan the API sleeps when idle, so the first request after a while takes up to a minute. The page shows a notice while it wakes up. To keep it awake, point an uptime monitor such as UptimeRobot at `/api/health` every 5 minutes.
 
 ## Configuration
 
