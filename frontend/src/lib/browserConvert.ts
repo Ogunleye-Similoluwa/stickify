@@ -1,5 +1,6 @@
 import type { FFmpeg } from "@ffmpeg/ffmpeg";
 import type { Sticker } from "./api";
+import { NativeStickerError, UnsupportedSource, convertNative, nativeSupported } from "./native";
 import {
   ANIMATED_STEPS, MAX_ANIMATED_BYTES, MAX_STATIC_BYTES, STATIC_QUALITIES, animatedArgs, clampSeconds,
   firstStep, prepareArgs, staticArgs, stepsToSkip, type PlanOptions,
@@ -30,7 +31,7 @@ export function canConvertInBrowser(): boolean {
   return typeof WebAssembly === "object" && typeof Worker !== "undefined";
 }
 
-export const converterReady = (): boolean => ready;
+export const converterReady = (): boolean => ready || nativeReady;
 
 function load(): Promise<FFmpeg> {
   loading ??= (async () => {
@@ -52,10 +53,17 @@ function load(): Promise<FFmpeg> {
   return loading;
 }
 
-/** Start downloading the converter in the background, e.g. once a clip is chosen. */
+/** Get ready to convert, e.g. once a clip is chosen. Only fetches ffmpeg.wasm where the native path isn't available. */
 export function warmUpConverter(): void {
-  if (canConvertInBrowser()) load().catch(() => {});
+  if (!canConvertInBrowser()) return;
+  void nativeSupported().then((native) => {
+    if (native) nativeReady = true;
+    else load().catch(() => {});
+  });
 }
+
+let nativeReady = false;
+let generation = 0;
 
 function inputName(type: string): string {
   if (type.includes("gif")) return "input.gif";
@@ -99,6 +107,7 @@ let cancelled = false;
  * so newer settings don't have to wait for it. The converter restarts in well under a second.
  */
 export function cancelConversion(): void {
+  generation++;
   if (!busy || !current) return;
   cancelled = true;
   current.terminate();
@@ -114,6 +123,23 @@ export function convertInBrowser(source: Blob, opts: PlanOptions, stillImage: bo
 }
 
 async function convert(source: Blob, opts: PlanOptions, stillImage: boolean): Promise<Sticker> {
+  const mine = ++generation;
+  if (await nativeSupported()) {
+    nativeReady = true;
+    try {
+      return await convertNative(source, { mode: opts.mode, fit: opts.fit, start: opts.start, seconds: clampSeconds(opts.seconds) },
+        stillImage, () => generation !== mine);
+    } catch (err) {
+      if (generation !== mine) throw new CancelledError("Replaced by newer settings");
+      if (err instanceof NativeStickerError) throw new StickerError(err.message);
+      if (!(err instanceof UnsupportedSource)) console.warn("Native conversion failed, using ffmpeg.wasm", err);
+      // fall through to ffmpeg.wasm
+    }
+  }
+  return convertWithWasm(source, opts, stillImage);
+}
+
+async function convertWithWasm(source: Blob, opts: PlanOptions, stillImage: boolean): Promise<Sticker> {
   const ffmpeg = await load();
   busy = true;
   cancelled = false;
