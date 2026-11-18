@@ -38,6 +38,9 @@ class StickerControllerTest {
     @MockBean
     private StickerService stickerService;
 
+    @MockBean
+    private com.stickify.service.WhatsAppStatus whatsAppStatus;
+
     @Test
     void healthIsOk() throws Exception {
         mvc.perform(get("/api/health"))

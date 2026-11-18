@@ -24,6 +24,9 @@ logging:
 
 # Stickify WhatsApp number (off until WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID and WHATSAPP_NUMBER are set)
 whatsapp:
+  # cloud = Meta's WhatsApp Cloud API; linked = a normal number linked like WhatsApp Web (see backend/bridge)
+  mode: ${WHATSAPP_MODE:cloud}
+  bridge-secret: ${BRIDGE_SECRET:}
   token: ${WHATSAPP_TOKEN:}
   phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:}
   number: ${WHATSAPP_NUMBER:}

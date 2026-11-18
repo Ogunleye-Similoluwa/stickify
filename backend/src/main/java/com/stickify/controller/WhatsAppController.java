@@ -36,6 +36,7 @@ import com.stickify.exception.InvalidInputException;
 import com.stickify.service.HandoffStore;
 import com.stickify.service.StickerFileCheck;
 import com.stickify.service.WhatsAppBot;
+import com.stickify.service.WhatsAppStatus;
 
 /**
  * Hands a finished sticker to WhatsApp: the website uploads it and gets a code plus a wa.me link;
@@ -51,22 +52,25 @@ public class WhatsAppController {
     private final HandoffStore store;
     private final WhatsAppBot bot;
     private final ObjectMapper mapper;
+    private final WhatsAppStatus status;
     /** Reply after acknowledging Meta's call, so it never waits on our uploads. */
     private final ExecutorService replies = Executors.newFixedThreadPool(2);
 
-    public WhatsAppController(WhatsAppProperties properties, HandoffStore store, WhatsAppBot bot, ObjectMapper mapper) {
+    public WhatsAppController(WhatsAppProperties properties, HandoffStore store, WhatsAppBot bot, ObjectMapper mapper,
+            WhatsAppStatus status) {
         this.properties = properties;
         this.store = store;
         this.bot = bot;
         this.mapper = mapper;
+        this.status = status;
     }
 
     public record HandoffResponse(String code, String link, long expiresInSeconds) {}
 
     @PostMapping(value = "/handoff", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public HandoffResponse handoff(@RequestPart("sticker") MultipartFile sticker) throws IOException {
-        if (!properties.enabled()) {
-            throw new BusyException("Sending to WhatsApp isn't set up yet.");
+        if (!status.available()) {
+            throw new BusyException("Sending to WhatsApp isn't available right now. Download the sticker instead.");
         }
         if (sticker == null || sticker.isEmpty()) {
             throw new InvalidInputException("Attach the sticker to send.");
@@ -103,7 +107,7 @@ public class WhatsAppController {
         }
         var payload = mapper.readTree(body);
         log.info("WhatsApp webhook received ({} bytes)", body.length);
-        if (properties.enabled()) {
+        if (properties.enabled() && !properties.linked()) {
             replies.submit(() -> bot.handle(payload));
         }
         return ResponseEntity.ok(Map.of("status", "received"));

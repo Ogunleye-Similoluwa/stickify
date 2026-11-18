@@ -24,7 +24,7 @@ public class WhatsAppSubscriber {
 
     @EventListener(ApplicationReadyEvent.class)
     public void subscribe() {
-        if (!properties.enabled() || properties.businessAccountId().isBlank()) {
+        if (properties.linked() || !properties.enabled() || properties.businessAccountId().isBlank()) {
             return;
         }
         Thread.startVirtualThread(() -> {

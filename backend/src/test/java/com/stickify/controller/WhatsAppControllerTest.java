@@ -30,6 +30,7 @@ import com.stickify.service.HandoffStore;
 import com.stickify.service.WhatsAppBot;
 
 @WebMvcTest(WhatsAppController.class)
+@org.springframework.context.annotation.Import(com.stickify.service.WhatsAppStatus.class)
 @TestPropertySource(properties = {
         "whatsapp.token=test-token",
         "whatsapp.phone-number-id=123",

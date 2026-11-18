@@ -1,0 +1,14 @@
+name: Keep server awake
+
+# Render's free plan sleeps after 15 idle minutes, which would also disconnect the WhatsApp number.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the API
+        run: curl -fsS --max-time 60 --retry 2 https://stickify-api.onrender.com/api/health || true

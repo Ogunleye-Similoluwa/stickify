@@ -19,6 +19,9 @@ services:
       - key: MAX_CONCURRENT_JOBS
         value: "1"
       # Stickify WhatsApp number. Secrets are set in the Render dashboard, never in this file.
+      # "linked" = a normal WhatsApp number linked like WhatsApp Web; "cloud" = Meta's Cloud API.
+      - key: WHATSAPP_MODE
+        sync: false
       - key: WHATSAPP_TOKEN
         sync: false
       - key: WHATSAPP_PHONE_NUMBER_ID
