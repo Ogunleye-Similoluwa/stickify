@@ -44,7 +44,7 @@ class FfmpegConverterTest {
     static void createSample() throws Exception {
         sampleVideo = sharedDir.resolve("sample.mp4");
         Process process = new ProcessBuilder("ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
-                "-f", "lavfi", "-i", "testsrc2=size=640x360:rate=30:duration=4",
+                "-f", "lavfi", "-i", "testsrc2=size=640x360:rate=30:duration=8",
                 "-pix_fmt", "yuv420p", sampleVideo.toString())
                 .redirectErrorStream(true)
                 .start();
@@ -60,6 +60,16 @@ class FfmpegConverterTest {
         assertThat(result.sizeBytes()).isPositive().isLessThanOrEqualTo(500_000);
         assertWebp(result.data());
         assertThat(new String(result.data(), StandardCharsets.ISO_8859_1)).contains("ANIM");
+    }
+
+    @Test
+    void makesLongAnimatedStickerFromTheMiddle(@TempDir Path workDir) {
+        StickerResult result = converter.convert(sampleVideo,
+                new ConversionOptions(StickerMode.ANIMATED, 1.5, 6), workDir);
+
+        assertThat(result.mode()).isEqualTo(StickerMode.ANIMATED);
+        assertThat(result.sizeBytes()).isPositive().isLessThanOrEqualTo(500_000);
+        assertWebp(result.data());
     }
 
     @Test
