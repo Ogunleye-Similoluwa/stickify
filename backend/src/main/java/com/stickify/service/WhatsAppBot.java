@@ -93,8 +93,10 @@ public class WhatsAppBot {
         if (to.isBlank()) {
             return;
         }
+        String who = "…" + to.substring(Math.max(0, to.length() - 4));
         try {
             Optional<String> code = codeIn(text);
+            log.info("WhatsApp message from {}: code {}", who, code.orElse("none"));
             if (code.isEmpty()) {
                 client.sendText(to, HELP);
                 return;
@@ -107,6 +109,7 @@ public class WhatsAppBot {
             String mediaId = client.uploadSticker(handoff.get().sticker());
             client.sendSticker(to, mediaId);
             client.sendText(to, SAVE_TIP);
+            log.info("Sent sticker {} to {}", code.get(), who);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } catch (Exception e) {

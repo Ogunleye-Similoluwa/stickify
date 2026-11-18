@@ -14,6 +14,8 @@ import java.util.concurrent.Executors;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -43,6 +45,8 @@ import com.stickify.service.WhatsAppBot;
 @RequestMapping("/api")
 public class WhatsAppController {
 
+    private static final Logger log = LoggerFactory.getLogger(WhatsAppController.class);
+
     private final WhatsAppProperties properties;
     private final HandoffStore store;
     private final WhatsAppBot bot;
@@ -70,6 +74,7 @@ public class WhatsAppController {
         byte[] bytes = sticker.getBytes();
         StickerFileCheck.check(bytes);
         HandoffStore.Handoff handoff = store.put(bytes);
+        log.info("Sticker waiting for WhatsApp under code {} ({} bytes)", handoff.code(), bytes.length);
         String text = URLEncoder.encode("sticker " + handoff.code(), StandardCharsets.UTF_8).replace("+", "%20");
         return new HandoffResponse(handoff.code(), "https://wa.me/" + properties.waNumber() + "?text=" + text,
                 properties.handoffTtl().toSeconds());
@@ -87,15 +92,17 @@ public class WhatsAppController {
         return ok ? ResponseEntity.ok(challenge) : ResponseEntity.status(HttpStatus.FORBIDDEN).body("forbidden");
     }
 
-    /** Incoming WhatsApp messages. */
+    /** Incoming WhatsApp messages. The raw bytes are kept as-is so Meta's signature can be checked exactly. */
     @PostMapping("/whatsapp/webhook")
     public ResponseEntity<Map<String, String>> receive(
-            @RequestBody String body,
+            @RequestBody byte[] body,
             @RequestHeader(value = "X-Hub-Signature-256", required = false) String signature) throws IOException {
         if (!validSignature(body, signature, properties.appSecret())) {
+            log.warn("Rejected a webhook call with a missing or wrong signature ({} bytes)", body.length);
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("status", "bad signature"));
         }
         var payload = mapper.readTree(body);
+        log.info("WhatsApp webhook received ({} bytes)", body.length);
         if (properties.enabled()) {
             replies.submit(() -> bot.handle(payload));
         }
@@ -103,7 +110,7 @@ public class WhatsAppController {
     }
 
     /** Meta signs each call with the app secret (HMAC-SHA256 of the raw body). */
-    static boolean validSignature(String body, String header, String appSecret) {
+    static boolean validSignature(byte[] body, String header, String appSecret) {
         if (appSecret == null || appSecret.isBlank()) {
             return true; // not configured yet (e.g. while testing); set WHATSAPP_APP_SECRET in production
         }
@@ -113,7 +120,7 @@ public class WhatsAppController {
         try {
             Mac mac = Mac.getInstance("HmacSHA256");
             mac.init(new SecretKeySpec(appSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-            byte[] expected = mac.doFinal(body.getBytes(StandardCharsets.UTF_8));
+            byte[] expected = mac.doFinal(body);
             byte[] given = HexFormat.of().parseHex(header.substring("sha256=".length()));
             return MessageDigest.isEqual(expected, given);
         } catch (NoSuchAlgorithmException | InvalidKeyException | IllegalArgumentException e) {

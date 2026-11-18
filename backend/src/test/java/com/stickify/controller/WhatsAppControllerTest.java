@@ -98,9 +98,23 @@ class WhatsAppControllerTest {
         Mac mac = Mac.getInstance("HmacSHA256");
         mac.init(new SecretKeySpec("secret".getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
         String good = "sha256=" + HexFormat.of().formatHex(mac.doFinal(body.getBytes(StandardCharsets.UTF_8)));
-        assertThat(WhatsAppController.validSignature(body, good, "secret")).isTrue();
-        assertThat(WhatsAppController.validSignature(body, "sha256=00", "secret")).isFalse();
-        assertThat(WhatsAppController.validSignature(body, null, "secret")).isFalse();
-        assertThat(WhatsAppController.validSignature(body, null, "")).isTrue();
+        byte[] raw = body.getBytes(StandardCharsets.UTF_8);
+        assertThat(WhatsAppController.validSignature(raw, good, "secret")).isTrue();
+        assertThat(WhatsAppController.validSignature(raw, "sha256=00", "secret")).isFalse();
+        assertThat(WhatsAppController.validSignature(raw, null, "secret")).isFalse();
+        assertThat(WhatsAppController.validSignature(raw, null, "")).isTrue();
+    }
+
+    @Test
+    void checksSignaturesOnNonEnglishNames() throws Exception {
+        String body = "{\"contacts\":[{\"profile\":{\"name\":\"Similolúwa 😎\"}}]}";
+        byte[] raw = body.getBytes(StandardCharsets.UTF_8);
+        Mac mac = Mac.getInstance("HmacSHA256");
+        mac.init(new SecretKeySpec("secret".getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+        String header = "sha256=" + HexFormat.of().formatHex(mac.doFinal(raw));
+        assertThat(WhatsAppController.validSignature(raw, header, "secret")).isTrue();
+        mvc.perform(post("/api/whatsapp/webhook").contentType(MediaType.APPLICATION_JSON).content(raw)
+                        .header("X-Hub-Signature-256", header))
+                .andExpect(status().isOk());
     }
 }
