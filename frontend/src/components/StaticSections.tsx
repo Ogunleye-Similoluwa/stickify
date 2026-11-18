@@ -50,7 +50,9 @@ export function Footer() {
   return (
     <footer className="foot">
       <p>Only convert media you have the right to use. Stickers are made on your device; files go to our server only if your browser can't convert them, and are deleted right after.</p>
-      <p><a href={REPO_URL}>Source on GitHub</a></p>
+      <p>
+        <a href="./privacy.html">Privacy</a> · <a href={REPO_URL}>Source on GitHub</a>
+      </p>
     </footer>
   );
 }
