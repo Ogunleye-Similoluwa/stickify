@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.stickify.model.LinkConversionRequest;
+import com.stickify.model.LinkLookupRequest;
+import com.stickify.model.MediaInfo;
 import com.stickify.model.StickerMode;
 import com.stickify.model.StickerResult;
 import com.stickify.service.StickerService;
@@ -45,9 +47,15 @@ public class StickerController {
             @RequestPart("file") MultipartFile file,
             @RequestParam(value = "mode", required = false) String mode,
             @RequestParam(value = "start", required = false) Double start,
-            @RequestParam(value = "seconds", required = false) Integer seconds) {
+            @RequestParam(value = "seconds", required = false) Double seconds) {
         StickerResult result = stickerService.fromUpload(file, StickerMode.from(mode), start, seconds);
         return asWebp(result);
+    }
+
+    /** Looks up the media in an X post so the browser can preview and trim it before converting. */
+    @PostMapping(value = "/media/resolve", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public MediaInfo resolveLink(@Valid @RequestBody LinkLookupRequest request) {
+        return stickerService.describeLink(request.url());
     }
 
     /** Converts the media attached to an X post. */

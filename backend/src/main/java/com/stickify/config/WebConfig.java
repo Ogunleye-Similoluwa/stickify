@@ -31,6 +31,6 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(new RateLimitInterceptor(properties.rateLimitRequests(), properties.rateLimitWindow()))
-                .addPathPatterns("/api/stickers/**");
+                .addPathPatterns("/api/stickers/**", "/api/media/**");
     }
 }

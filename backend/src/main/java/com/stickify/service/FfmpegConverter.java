@@ -57,7 +57,7 @@ public class FfmpegConverter {
             int quality = step[1];
             List<String> command = baseCommand(options, input);
             command.addAll(List.of(
-                    "-t", String.valueOf(options.seconds()),
+                    "-t", String.format(Locale.ROOT, "%.2f", options.seconds()),
                     "-vf", "fps=" + fps + "," + scaleAndPadFilter(),
                     "-c:v", "libwebp_anim",
                     "-lossless", "0",

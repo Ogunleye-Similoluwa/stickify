@@ -21,6 +21,7 @@ import com.stickify.config.StickerProperties;
 import com.stickify.exception.InvalidInputException;
 import com.stickify.exception.MediaNotFoundException;
 import com.stickify.exception.UpstreamException;
+import com.stickify.model.MediaInfo;
 import com.stickify.model.SourceMedia;
 
 /**
@@ -51,7 +52,18 @@ public class XMediaResolver {
                 .build();
     }
 
+    /** Downloads the post's media so it can be converted. */
     public SourceMedia resolve(String postUrl) {
+        return download(choose(postUrl));
+    }
+
+    /** Looks up the post's media without downloading it, so the browser can preview and trim it. */
+    public MediaInfo describe(String postUrl) {
+        MediaChoice choice = choose(postUrl);
+        return new MediaInfo(choice.url(), choice.kind(), choice.durationSeconds(), choice.width(), choice.height());
+    }
+
+    private MediaChoice choose(String postUrl) {
         String statusId = extractStatusId(postUrl)
                 .orElseThrow(() -> new InvalidInputException(
                         "That doesn't look like an X post link. It should look like https://x.com/user/status/123…"));
@@ -59,8 +71,10 @@ public class XMediaResolver {
         JsonNode media = fetchPostMedia(statusId);
         MediaChoice choice = chooseMedia(media)
                 .orElseThrow(() -> new MediaNotFoundException("That post has no GIF, video or photo to use."));
-
-        return download(choice);
+        if (!isXMediaHost(choice.url())) {
+            throw new MediaNotFoundException("That post's media isn't hosted on X, so we can't fetch it.");
+        }
+        return choice;
     }
 
     static Optional<String> extractStatusId(String url) {
@@ -111,11 +125,14 @@ public class XMediaResolver {
             if (url == null) {
                 continue;
             }
-            if ("gif".equalsIgnoreCase(item.path("type").asText())) {
-                return Optional.of(new MediaChoice(url, false));
+            boolean gif = "gif".equalsIgnoreCase(item.path("type").asText());
+            MediaChoice candidate = new MediaChoice(url, gif ? "gif" : "video",
+                    positiveOrNull(item.path("duration")), intOrNull(item.path("width")), intOrNull(item.path("height")));
+            if (gif) {
+                return Optional.of(candidate);
             }
             if (video == null) {
-                video = new MediaChoice(url, false);
+                video = candidate;
             }
         }
         if (video != null) {
@@ -124,18 +141,33 @@ public class XMediaResolver {
         for (JsonNode item : media.path("photos")) {
             String url = item.path("url").asText(null);
             if (url != null) {
-                return Optional.of(new MediaChoice(url, true));
+                return Optional.of(new MediaChoice(url, "photo", null,
+                        intOrNull(item.path("width")), intOrNull(item.path("height"))));
             }
         }
         return Optional.empty();
     }
 
+    private static Double positiveOrNull(JsonNode node) {
+        return node.isNumber() && node.asDouble() > 0 ? node.asDouble() : null;
+    }
+
+    private static Integer intOrNull(JsonNode node) {
+        return node.isNumber() ? node.asInt() : null;
+    }
+
+    static boolean isXMediaHost(String url) {
+        try {
+            URI uri = URI.create(url);
+            String host = uri.getHost() == null ? "" : uri.getHost().toLowerCase(Locale.ROOT);
+            return "https".equalsIgnoreCase(uri.getScheme()) && (host.equals("twimg.com") || host.endsWith(".twimg.com"));
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
     private SourceMedia download(MediaChoice choice) {
         URI uri = URI.create(choice.url());
-        String host = uri.getHost() == null ? "" : uri.getHost().toLowerCase(Locale.ROOT);
-        if (!"https".equalsIgnoreCase(uri.getScheme()) || !(host.equals("twimg.com") || host.endsWith(".twimg.com"))) {
-            throw new MediaNotFoundException("That post's media isn't hosted on X, so we can't fetch it.");
-        }
         HttpRequest request = HttpRequest.newBuilder(uri)
                 .timeout(Duration.ofSeconds(30))
                 .header("User-Agent", USER_AGENT)
@@ -175,6 +207,10 @@ public class XMediaResolver {
         return out.toByteArray();
     }
 
-    record MediaChoice(String url, boolean photo) {
+    record MediaChoice(String url, String kind, Double durationSeconds, Integer width, Integer height) {
+
+        boolean photo() {
+            return "photo".equals(kind);
+        }
     }
 }

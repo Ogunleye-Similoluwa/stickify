@@ -21,6 +21,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.stickify.exception.MediaNotFoundException;
 import com.stickify.model.LinkConversionRequest;
+import com.stickify.model.MediaInfo;
 import com.stickify.model.StickerMode;
 import com.stickify.model.StickerResult;
 import com.stickify.service.StickerService;
@@ -86,6 +87,20 @@ class StickerControllerTest {
                         .content("{\"url\":\"https://x.com/a/status/1\"}"))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.message").value("That post has no GIF, video or photo to use."));
+    }
+
+    @Test
+    void resolveReturnsMediaInfo() throws Exception {
+        when(stickerService.describeLink("https://x.com/a/status/1"))
+                .thenReturn(new MediaInfo("https://video.twimg.com/g.mp4", "gif", 4.2, 480, 270));
+
+        mvc.perform(post("/api/media/resolve")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"url\":\"https://x.com/a/status/1\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mediaUrl").value("https://video.twimg.com/g.mp4"))
+                .andExpect(jsonPath("$.kind").value("gif"))
+                .andExpect(jsonPath("$.durationSeconds").value(4.2));
     }
 
     @Test

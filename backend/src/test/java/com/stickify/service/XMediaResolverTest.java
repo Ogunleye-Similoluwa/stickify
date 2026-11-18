@@ -55,6 +55,30 @@ class XMediaResolverTest {
     }
 
     @Test
+    void readsDurationAndSize() throws Exception {
+        JsonNode media = mapper.readTree("""
+                {"videos":[{"type":"video","url":"https://video.twimg.com/v.mp4",
+                            "duration":7.5,"width":1280,"height":720}]}
+                """);
+        assertThat(XMediaResolver.chooseMedia(media))
+                .hasValueSatisfying(choice -> {
+                    assertThat(choice.kind()).isEqualTo("video");
+                    assertThat(choice.durationSeconds()).isEqualTo(7.5);
+                    assertThat(choice.width()).isEqualTo(1280);
+                    assertThat(choice.height()).isEqualTo(720);
+                });
+    }
+
+    @Test
+    void onlyTrustsXMediaHosts() {
+        assertThat(XMediaResolver.isXMediaHost("https://video.twimg.com/a.mp4")).isTrue();
+        assertThat(XMediaResolver.isXMediaHost("https://pbs.twimg.com/media/a.jpg")).isTrue();
+        assertThat(XMediaResolver.isXMediaHost("http://video.twimg.com/a.mp4")).isFalse();
+        assertThat(XMediaResolver.isXMediaHost("https://twimg.com.evil.com/a.mp4")).isFalse();
+        assertThat(XMediaResolver.isXMediaHost("not a url")).isFalse();
+    }
+
+    @Test
     void fallsBackToPhoto() throws Exception {
         JsonNode media = mapper.readTree("""
                 {"photos":[{"url":"https://pbs.twimg.com/media/a.jpg"}]}

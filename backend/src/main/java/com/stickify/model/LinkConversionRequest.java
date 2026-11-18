@@ -9,11 +9,11 @@ import jakarta.validation.constraints.Size;
  * @param url          link to the post, e.g. https://x.com/user/status/123
  * @param mode         "animated" (default) or "static"
  * @param startSeconds optional start offset in seconds
- * @param seconds      optional clip length in seconds
+ * @param seconds      optional clip length in seconds; defaults to the whole clip, up to the maximum
  */
 public record LinkConversionRequest(
         @NotBlank(message = "Paste a link to an X post") @Size(max = 500) String url,
         StickerMode mode,
         Double startSeconds,
-        Integer seconds) {
+        Double seconds) {
 }

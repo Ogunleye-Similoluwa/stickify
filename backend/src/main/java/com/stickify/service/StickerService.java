@@ -17,6 +17,7 @@ import com.stickify.exception.ConversionException;
 import com.stickify.exception.InvalidInputException;
 import com.stickify.model.ConversionOptions;
 import com.stickify.model.LinkConversionRequest;
+import com.stickify.model.MediaInfo;
 import com.stickify.model.SourceMedia;
 import com.stickify.model.StickerMode;
 import com.stickify.model.StickerResult;
@@ -40,7 +41,7 @@ public class StickerService {
         this.jobs = new Semaphore(Math.max(1, properties.maxConcurrentJobs()), true);
     }
 
-    public StickerResult fromUpload(MultipartFile file, StickerMode mode, Double startSeconds, Integer seconds) {
+    public StickerResult fromUpload(MultipartFile file, StickerMode mode, Double startSeconds, Double seconds) {
         if (file == null || file.isEmpty()) {
             throw new InvalidInputException("Choose a GIF, video or image to upload");
         }
@@ -57,11 +58,22 @@ public class StickerService {
         return convert(media, options(request.mode(), request.startSeconds(), request.seconds()));
     }
 
-    ConversionOptions options(StickerMode mode, Double startSeconds, Integer seconds) {
-        int requested = seconds == null ? properties.defaultSeconds() : seconds;
-        int clamped = Math.min(Math.max(requested, 1), properties.maxSeconds());
-        return new ConversionOptions(mode, startSeconds == null ? 0 : startSeconds, clamped);
+    public MediaInfo describeLink(String url) {
+        return resolver.describe(url);
     }
+
+    /**
+     * Without an explicit length the sticker uses the whole clip, up to WhatsApp's maximum;
+     * ffmpeg simply stops at the end of shorter clips.
+     */
+    ConversionOptions options(StickerMode mode, Double startSeconds, Double seconds) {
+        double requested = seconds == null || seconds.isNaN() ? properties.maxSeconds() : seconds;
+        double clamped = Math.min(Math.max(requested, MIN_SECONDS), properties.maxSeconds());
+        double start = startSeconds == null || startSeconds.isNaN() ? 0 : startSeconds;
+        return new ConversionOptions(mode, start, clamped);
+    }
+
+    static final double MIN_SECONDS = 0.5;
 
     private StickerResult convert(SourceMedia media, ConversionOptions options) {
         ConversionOptions effective = media.stillImage() ? options.withMode(StickerMode.STATIC) : options;

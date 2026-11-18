@@ -42,8 +42,11 @@
       <form id="form" novalidate>
         <div class="pane" data-pane="link">
           <label class="field-label" for="url">Link to the post</label>
-          <input id="url" name="url" type="url" inputmode="url" autocomplete="off"
-                 placeholder="https://x.com/someone/status/1234567890">
+          <div class="url-row">
+            <input id="url" name="url" type="url" inputmode="url" autocomplete="off"
+                   placeholder="https://x.com/someone/status/1234567890">
+            <button class="ghost load" type="button" id="load">Load</button>
+          </div>
           <p class="hint">Works with posts that have a GIF, video or photo. Private posts can't be fetched.</p>
         </div>
 
@@ -58,23 +61,34 @@
           </label>
         </div>
 
+        <section class="clip" id="clip" hidden aria-label="Preview and trim">
+          <div class="clip-stage checker">
+            <video id="clip-video" muted playsinline preload="auto" hidden></video>
+            <img id="clip-image" alt="Preview of your file" hidden>
+            <span class="clip-loading" id="clip-loading" hidden>Loading preview…</span>
+            <span class="clip-badge" id="clip-badge"></span>
+          </div>
+
+          <div class="trim-wrap" id="trim-wrap" hidden>
+            <div class="trim" id="trim">
+              <div class="trim-track"><div class="trim-fill"></div><div class="trim-playhead" id="playhead"></div></div>
+              <input class="trim-range" id="trim-start" type="range" min="0" max="10" step="0.1" value="0" aria-label="Sticker starts at">
+              <input class="trim-range" id="trim-end" type="range" min="0" max="10" step="0.1" value="10" aria-label="Sticker ends at">
+            </div>
+            <div class="trim-readout">
+              <span><span id="start-label">Start</span> <b id="start-out">0.0 s</b></span>
+              <span id="end-group">End <b id="end-out">0.0 s</b></span>
+              <span id="len-group">Length <b id="len-out">0.0 s</b></span>
+            </div>
+          </div>
+          <p class="hint" id="trim-hint"></p>
+        </section>
+
         <fieldset class="options">
           <legend class="field-label">Sticker type</legend>
           <div class="segmented" role="radiogroup">
             <label><input type="radio" name="mode" value="animated" checked><span>Animated</span></label>
             <label><input type="radio" name="mode" value="static"><span>Still</span></label>
-          </div>
-
-          <div class="timing" id="timing">
-            <div class="timing-row">
-              <label class="field-label" for="seconds">Length</label>
-              <output id="seconds-out" for="seconds">6 s</output>
-            </div>
-            <input id="seconds" name="seconds" type="range" min="1" max="10" step="1" value="6">
-            <div class="timing-row">
-              <label class="field-label" for="start">Start at</label>
-              <span class="inline-input"><input id="start" name="start" type="number" min="0" step="0.5" value="0"> s</span>
-            </div>
           </div>
         </fieldset>
 
