@@ -12,6 +12,7 @@ import { frameDurations, muxAnimatedWebp, parseWebp } from "./webpMux";
  * other browsers fall back to ffmpeg.wasm.
  */
 export { UnsupportedSource };
+export { warmPool } from "./encoderPool";
 
 export class NativeStickerError extends Error {}
 

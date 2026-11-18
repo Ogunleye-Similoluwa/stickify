@@ -1,6 +1,6 @@
 import type { FFmpeg } from "@ffmpeg/ffmpeg";
 import type { Sticker } from "./api";
-import { NativeStickerError, UnsupportedSource, convertNative, nativeSupported } from "./native";
+import { NativeStickerError, UnsupportedSource, convertNative, nativeSupported, warmPool } from "./native";
 import {
   ANIMATED_STEPS, MAX_ANIMATED_BYTES, MAX_STATIC_BYTES, STATIC_QUALITIES, animatedArgs, clampSeconds,
   firstStep, prepareArgs, staticArgs, stepsToSkip, type PlanOptions,
@@ -57,7 +57,10 @@ function load(): Promise<FFmpeg> {
 export function warmUpConverter(): void {
   if (!canConvertInBrowser()) return;
   void nativeSupported().then((native) => {
-    if (native) nativeReady = true;
+    if (native) {
+      nativeReady = true;
+      warmPool();
+    }
     else load().catch(() => {});
   });
 }

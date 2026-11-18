@@ -38,3 +38,11 @@ export function encodeFrame(bitmap: ImageBitmap, quality: number): Promise<Uint8
 export function encodeAll(bitmaps: ImageBitmap[], quality: number): Promise<Uint8Array[]> {
   return Promise.all(bitmaps.map((b) => encodeFrame(b, quality)));
 }
+
+/** Start the workers and run a tiny encode so the first real frame doesn't pay the start-up cost. */
+export function warmPool(): void {
+  const canvas = new OffscreenCanvas(8, 8);
+  canvas.getContext("2d")!.fillRect(0, 0, 8, 8);
+  const bitmap = canvas.transferToImageBitmap();
+  Promise.all(pool().map(() => encodeFrame(bitmap, 0.5))).catch(() => {}).finally(() => bitmap.close());
+}
