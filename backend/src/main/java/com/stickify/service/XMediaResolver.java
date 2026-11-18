@@ -17,6 +17,8 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.stickify.config.StickerProperties;
 import com.stickify.exception.InvalidInputException;
 import com.stickify.exception.MediaNotFoundException;
@@ -68,7 +70,13 @@ public class XMediaResolver {
                 .orElseThrow(() -> new InvalidInputException(
                         "That doesn't look like an X post link. It should look like https://x.com/user/status/123…"));
 
-        JsonNode media = fetchPostMedia(statusId);
+        JsonNode media;
+        try {
+            media = fetchPostMedia(statusId);
+        } catch (UpstreamException primaryDown) {
+            // fxtwitter is down or overloaded: ask X's own embed service instead.
+            media = fetchFromSyndication(statusId).orElseThrow(() -> primaryDown);
+        }
         MediaChoice choice = chooseMedia(media)
                 .orElseThrow(() -> new MediaNotFoundException("That post has no GIF, video or photo to use."));
         if (!isXMediaHost(choice.url())) {
@@ -111,6 +119,95 @@ public class XMediaResolver {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new UpstreamException("X lookup was interrupted.", e);
+        }
+    }
+
+    /** X's embed service (used by embedded posts on websites). Answers servers, not browsers. */
+    static final String SYNDICATION_URL = "https://cdn.syndication.twimg.com/tweet-result?id=%s&token=%s&lang=en";
+
+    /** The token the embed widget sends; the service currently accepts any value, but send the real one. */
+    static String syndicationToken(String statusId) {
+        double value = (Double.parseDouble(statusId) / 1e15) * Math.PI;
+        long whole = (long) value;
+        StringBuilder token = new StringBuilder(Long.toString(whole, 36)).append('.');
+        double fraction = value - whole;
+        for (int i = 0; i < 10; i++) {
+            fraction *= 36;
+            int digit = (int) fraction;
+            token.append(Character.forDigit(digit, 36));
+            fraction -= digit;
+        }
+        return token.toString().replaceAll("(0+|\\.)", "");
+    }
+
+    private Optional<JsonNode> fetchFromSyndication(String statusId) {
+        URI uri = URI.create(String.format(Locale.ROOT, SYNDICATION_URL, statusId, syndicationToken(statusId)));
+        HttpRequest request = HttpRequest.newBuilder(uri)
+                .timeout(Duration.ofSeconds(15))
+                .header("User-Agent", USER_AGENT)
+                .header("Accept", "application/json")
+                .GET()
+                .build();
+        try {
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200 || response.body().isBlank()) {
+                return Optional.empty();
+            }
+            return Optional.of(syndicationToMedia(objectMapper.readTree(response.body()), objectMapper));
+        } catch (IOException e) {
+            return Optional.empty();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return Optional.empty();
+        }
+    }
+
+    /** Reshapes the embed service's answer into the same form fxtwitter uses, so one chooser handles both. */
+    static JsonNode syndicationToMedia(JsonNode post, ObjectMapper mapper) {
+        ObjectNode media = mapper.createObjectNode();
+        ArrayNode videos = media.putArray("videos");
+        ArrayNode photos = media.putArray("photos");
+        for (JsonNode item : post.path("mediaDetails")) {
+            String type = item.path("type").asText();
+            JsonNode size = item.path("original_info");
+            if ("photo".equals(type)) {
+                ObjectNode photo = photos.addObject();
+                photo.put("url", item.path("media_url_https").asText());
+                copyNumber(size, "width", photo);
+                copyNumber(size, "height", photo);
+                continue;
+            }
+            JsonNode info = item.path("video_info");
+            ObjectNode video = videos.addObject();
+            video.put("type", "animated_gif".equals(type) ? "gif" : "video");
+            if (info.path("duration_millis").isNumber()) {
+                video.put("duration", info.path("duration_millis").asDouble() / 1000.0);
+            }
+            copyNumber(size, "width", video);
+            copyNumber(size, "height", video);
+            ArrayNode variants = video.putArray("variants");
+            String best = null;
+            long bestRate = -1;
+            for (JsonNode variant : info.path("variants")) {
+                String contentType = variant.path("content_type").asText();
+                String url = variant.path("url").asText();
+                variants.addObject().put("content_type", contentType).put("url", url);
+                long rate = variant.path("bitrate").asLong(0);
+                if ("video/mp4".equals(contentType) && rate >= bestRate) {
+                    best = url;
+                    bestRate = rate;
+                }
+            }
+            if (best != null) {
+                video.put("url", best);
+            }
+        }
+        return media;
+    }
+
+    private static void copyNumber(JsonNode from, String field, ObjectNode to) {
+        if (from.path(field).isNumber()) {
+            to.put(field, from.path(field).asInt());
         }
     }
 
