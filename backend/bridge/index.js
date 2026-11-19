@@ -1,14 +1,15 @@
 // Stickify WhatsApp bridge: keeps a normal WhatsApp number linked (like WhatsApp Web) and answers
 // "sticker CODE" messages with the sticker waiting on the Stickify server under that code.
-import { rm } from "node:fs/promises";
-import makeWASocket, { Browsers, DisconnectReason, useMultiFileAuthState } from "@whiskeysockets/baileys";
+import makeWASocket, { Browsers, DisconnectReason } from "@whiskeysockets/baileys";
 import pino from "pino";
+import { openAuthStore } from "./auth-store.js";
 import { REPLIES, isAnimatedWebp, isPrivateChat, readRequest, textOf } from "./messages.js";
 
 const API = `http://127.0.0.1:${process.env.PORT || 8080}`;
 const SECRET = process.env.BRIDGE_SECRET || "";
 const NUMBER = (process.env.WHATSAPP_NUMBER || "").replace(/\D/g, "");
 const AUTH_DIR = process.env.WA_AUTH_DIR || "/tmp/stickify-wa-auth";
+const REDIS_URL = process.env.WA_REDIS_URL || "";
 
 const log = pino({ level: process.env.BRIDGE_LOG_LEVEL || "info", base: { app: "wa-bridge" } });
 const quiet = pino({ level: "warn" }); // Baileys' own logs are very chatty
@@ -22,6 +23,7 @@ const headers = { "X-Bridge-Secret": SECRET };
 const seen = new Set();
 let connected = false;
 let sock;
+let authStore;
 
 async function waitForServer() {
   for (;;) {
@@ -54,8 +56,11 @@ async function heartbeat() {
 async function answer(msg) {
   const jid = msg.key.remoteJid;
   const request = readRequest(textOf(msg.message));
-  if (!request) return; // not for us: never reply to ordinary chats
   const who = "…" + jid.split("@")[0].slice(-4);
+  if (!request) {
+    log.info(`Ignored a message from ${who} (no sticker code)`); // never reply to ordinary chats
+    return;
+  }
   await sock.readMessages([msg.key]).catch(() => {});
   if (request.help) {
     await sock.sendMessage(jid, { text: REPLIES.help });
@@ -78,7 +83,7 @@ async function answer(msg) {
 }
 
 async function start() {
-  const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+  const { state, saveCreds, clear } = await authStore.load();
   let askedForCode = false;
 
   sock = makeWASocket({
@@ -113,7 +118,7 @@ async function start() {
       const status = lastDisconnect?.error?.output?.statusCode;
       if (status === DisconnectReason.loggedOut) {
         log.warn("WhatsApp logged this device out; starting over with a new link code");
-        await rm(AUTH_DIR, { recursive: true, force: true });
+        await clear();
       } else {
         log.info({ status }, "WhatsApp connection closed; reconnecting");
       }
@@ -133,6 +138,7 @@ async function start() {
   });
 }
 
+authStore = await openAuthStore({ redisUrl: REDIS_URL, folder: AUTH_DIR, log });
 await waitForServer();
 setInterval(heartbeat, 30_000);
 await start();
