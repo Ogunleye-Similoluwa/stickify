@@ -23,6 +23,10 @@ const headers = { "X-Bridge-Secret": SECRET };
 const seen = new Set();
 let connected = false;
 let sock;
+// WhatsApp blocks numbers that ask for many link codes, so only ask a few times per start.
+const MAX_LINK_CODES = 3;
+let linkCodes = 0;
+let waitingForRestart = false;
 let authStore;
 
 async function waitForServer() {
@@ -101,6 +105,13 @@ async function start() {
     // Not linked yet: ask WhatsApp for an 8-character code instead of showing a QR code.
     if (qr && !state.creds.registered && !askedForCode) {
       askedForCode = true;
+      if (linkCodes >= MAX_LINK_CODES) {
+        waitingForRestart = true;
+        log.warn(`Stopped asking for link codes after ${MAX_LINK_CODES} tries. Restart the service on Render for new ones.`);
+        sock.end(undefined);
+        return;
+      }
+      linkCodes++;
       try {
         const code = await sock.requestPairingCode(NUMBER);
         log.info(`LINK CODE: ${code.slice(0, 4)}-${code.slice(4)}  (on the Stickify phone: WhatsApp > Linked devices > Link a device > Link with phone number instead)`);
@@ -110,11 +121,13 @@ async function start() {
     }
     if (connection === "open") {
       connected = true;
+      linkCodes = 0;
       log.info(`Linked to WhatsApp as ${NUMBER.slice(0, 3)}…${NUMBER.slice(-4)}; answering sticker codes`);
       heartbeat();
     }
     if (connection === "close") {
       connected = false;
+      if (waitingForRestart) return;
       const status = lastDisconnect?.error?.output?.statusCode;
       if (status === DisconnectReason.loggedOut) {
         log.warn("WhatsApp logged this device out; starting over with a new link code");
